@@ -193,41 +193,61 @@ async function saveSettings() {
 
 async function loadAnalytics() {
   try {
-    const response = await chrome.runtime.sendMessage({ action: 'getStats' });
+    const counts = await AnalyticsManager.getTodayBlockCounts() || {};
+    const text = counts.text ?? 0;
+    const images = counts.images ?? 0;
+    const videos = counts.videos ?? 0;
+    const total = counts.total ?? (text + images + videos);
     
-    if (response.success && response.stats) {
-      const stats = response.stats;
-      const today = stats.today || {};
-      
-      document.getElementById('textBlocked').textContent = today.text || 0;
-      document.getElementById('imageBlocked').textContent = today.image || 0;
-      document.getElementById('videoBlocked').textContent = today.video || 0;
-      
-      const total = (today.text || 0) + (today.image || 0) + (today.video || 0);
-      document.getElementById('totalBlocked').textContent = total;
-      
-      renderTopBlockedCategories(today.categories || {});
-    }
+    document.getElementById('textBlocked').textContent = text;
+    document.getElementById('imageBlocked').textContent = images;
+    document.getElementById('videoBlocked').textContent = videos;
+    document.getElementById('totalBlocked').textContent = total;
+    
+    const topBlocked = await AnalyticsManager.getTopBlockedDomains(5);
+    renderTopBlockedDomains(topBlocked);
   } catch (error) {
     console.error('FocusGuard: Error loading analytics:', error);
+    const list = document.getElementById('topBlockedList');
+    if (list) {
+      list.innerHTML = '<div style="color: #94A3B8; font-size: 13px;">Unable to load analytics</div>';
+    }
   }
 }
 
-function renderTopBlockedCategories(categories) {
+function renderTopBlockedDomains(domains = []) {
   const list = document.getElementById('topBlockedList');
   
-  const sorted = Object.entries(categories)
-    .sort((a, b) => b[1] - a[1])
-    .slice(0, 5);
-  
-  if (sorted.length === 0) {
-    list.innerHTML = '<span class="placeholder-text">No data yet</span>';
+  if (!list) {
+    console.error('FocusGuard: topBlockedList element not found');
     return;
   }
   
-  list.innerHTML = sorted.map(([cat, count]) => `
-    <div class="top-blocked-item">${cat} (${count})</div>
-  `).join('');
+  list.innerHTML = '';
+  const domainList = Array.isArray(domains) ? domains : [];
+  
+  if (!domainList.length) {
+    list.innerHTML = '<div style="color: #94A3B8; font-size: 13px;">No blocks yet today</div>';
+    return;
+  }
+  
+  domainList.forEach(({ domain, count }) => {
+    const sanitizedDomain = typeof domain === 'string' ? domain.trim() : '';
+    const invalidDomain = !sanitizedDomain || sanitizedDomain.toLowerCase() === 'undefined' || sanitizedDomain.toLowerCase() === 'null';
+    const safeDomain = invalidDomain ? 'Unknown' : sanitizedDomain;
+    const numericCount = Number(count);
+    const safeCount = Number.isFinite(numericCount) ? numericCount : 0;
+    const item = document.createElement('div');
+    item.className = 'top-blocked-list-item';
+    const domainEl = document.createElement('span');
+    domainEl.className = 'category';
+    domainEl.textContent = safeDomain;
+    const countEl = document.createElement('span');
+    countEl.className = 'count';
+    countEl.textContent = String(safeCount);
+    item.append(domainEl, countEl);
+    list.appendChild(item);
+  });
 }
 
 async function resetStats() {

@@ -67,32 +67,19 @@ class FilterEngine {
       return;
     }
     
-    // Mark as filtered
     element.setAttribute('data-focusguard-filtered', 'true');
     element.setAttribute('data-focusguard-category', category);
     element.setAttribute('data-focusguard-filter-type', 'blur');
     
-    // Add blur CSS classes
-    element.classList.add('focusguard-blur');
+    element.classList.add('focusguard-blur', 'focusguard-blurred');
     
-    // Apply inline styles as fallback
-    element.style.filter = 'blur(10px) grayscale(100%)';
+    element.style.filter = 'blur(12px) grayscale(100%)';
     element.style.transition = 'filter 0.3s ease';
-    
-    // Add hover effect to reveal content temporarily
-    element.addEventListener('mouseenter', () => {
-      element.style.filter = 'none';
-    });
-    
-    element.addEventListener('mouseleave', () => {
-      element.style.filter = 'blur(10px) grayscale(100%)';
-    });
-    
-    // Add click handler to permanently reveal
-    element.addEventListener('click', (e) => {
-      e.stopPropagation();
-      this.removeFilter(element);
-    });
+    element.style.pointerEvents = 'none';
+    element.style.cursor = 'not-allowed';
+    element.style.opacity = '0.85';
+    element.style.userSelect = 'none';
+    element.style.webkitUserSelect = 'none';
   }
 
   /**
@@ -210,11 +197,16 @@ class FilterEngine {
     element.removeAttribute('data-focusguard-filter-type');
     
     // Remove CSS classes
-    element.classList.remove('focusguard-blur', 'focusguard-blocked');
+    element.classList.remove('focusguard-blur', 'focusguard-blurred', 'focusguard-blocked');
     
     // Remove inline styles
     element.style.filter = '';
     element.style.transition = '';
+    element.style.pointerEvents = '';
+    element.style.cursor = '';
+    element.style.opacity = '';
+    element.style.userSelect = '';
+    element.style.webkitUserSelect = '';
     
     // Remove event listeners (by cloning and replacing)
     const newElement = element.cloneNode(true);
@@ -243,17 +235,14 @@ class FilterEngine {
     const blurAmount = Math.max(0, Math.min(20, intensity / 5)); // 0-20px blur
     const grayscaleAmount = Math.max(0, Math.min(100, intensity)); // 0-100% grayscale
     
+    element.classList.add('focusguard-blur', 'focusguard-blurred');
     element.style.filter = `blur(${blurAmount}px) grayscale(${grayscaleAmount}%)`;
     element.style.transition = 'filter 0.3s ease';
-    
-    // Add hover effect
-    element.addEventListener('mouseenter', () => {
-      element.style.filter = 'none';
-    });
-    
-    element.addEventListener('mouseleave', () => {
-      element.style.filter = `blur(${blurAmount}px) grayscale(${grayscaleAmount}%)`;
-    });
+    element.style.pointerEvents = 'none';
+    element.style.cursor = 'not-allowed';
+    element.style.opacity = '0.85';
+    element.style.userSelect = 'none';
+    element.style.webkitUserSelect = 'none';
   }
 
   /**

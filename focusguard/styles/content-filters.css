@@ -4,15 +4,21 @@
  */
 
 /* Base blur effect */
-.focusguard-blur {
-  filter: blur(10px) grayscale(100%) !important;
+.focusguard-blur,
+.focusguard-blurred {
+  filter: blur(12px) grayscale(100%) !important;
   transition: filter 0.3s ease !important;
   position: relative !important;
+  pointer-events: none !important;
+  cursor: not-allowed !important;
+  opacity: 0.85 !important;
+  user-select: none !important;
+  -webkit-user-select: none !important;
 }
 
-.focusguard-blur:hover {
-  filter: none !important;
-  cursor: pointer !important;
+.focusguard-blur:hover,
+.focusguard-blurred:hover {
+  filter: blur(12px) grayscale(100%) !important;
 }
 
 /* Progressive blur levels */
@@ -274,7 +280,8 @@
 
 /* Reduced motion support */
 @media (prefers-reduced-motion: reduce) {
-  .focusguard-blur {
+  .focusguard-blur,
+  .focusguard-blurred {
     transition: none !important;
   }
   
@@ -293,14 +300,16 @@
     display: none !important;
   }
   
-  .focusguard-blur {
+  .focusguard-blur,
+  .focusguard-blurred {
     filter: none !important;
   }
 }
 
 /* Focus styles for accessibility */
 .focusguard-reveal-btn:focus,
-.focusguard-blur:focus {
+.focusguard-blur:focus,
+.focusguard-blurred:focus {
   outline: 2px solid #4CAF50 !important;
   outline-offset: 2px !important;
 }
