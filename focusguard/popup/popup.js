@@ -1,392 +1,234 @@
 /**
- * Popup JavaScript for FocusGuard
- * Handles popup UI interactions and background communication
+ * Modern Popup Logic for FocusGuard
  */
 
-class PopupManager {
-  constructor() {
-    this.currentTab = null;
-    this.settings = {};
-    this.stats = {};
-    this.actionLog = [];
-    
-    this.initialize();
-  }
+let currentTab = null;
+let currentSettings = {};
 
-  /**
-   * Initialize popup
-   */
-  async initialize() {
-    try {
-      // Show loading
-      this.showLoading(true);
-      
-      // Get current tab
-      await this.getCurrentTab();
-      
-      // Load settings and stats
-      await this.loadSettings();
-      await this.loadStats();
-      
-      // Setup UI
-      this.setupEventListeners();
-      this.updateUI();
-      
-      // Hide loading
-      this.showLoading(false);
-      
-      console.log('FocusGuard: Popup initialized');
-    } catch (error) {
-      console.error('FocusGuard: Popup initialization error:', error);
-      this.showToast('Error loading popup', 'error');
-      this.showLoading(false);
-    }
-  }
+document.addEventListener('DOMContentLoaded', () => {
+  initializePopup();
+});
 
-  /**
-   * Get current active tab
-   */
-  async getCurrentTab() {
+async function initializePopup() {
+  try {
     const tabs = await chrome.tabs.query({ active: true, currentWindow: true });
-    this.currentTab = tabs[0];
-  }
+    currentTab = tabs[0] || null;
+    updatePageUrl(currentTab);
 
-  /**
-   * Load settings from background
-   */
-  async loadSettings() {
-    try {
-      const response = await chrome.runtime.sendMessage({
-        action: 'getSettings'
-      });
-      
-      if (response.success) {
-        this.settings = response.settings;
-      }
-    } catch (error) {
-      console.error('FocusGuard: Error loading settings:', error);
-    }
-  }
-
-  /**
-   * Load statistics from background
-   */
-  async loadStats() {
-    try {
-      const response = await chrome.runtime.sendMessage({
-        action: 'getStats'
-      });
-      
-      if (response.success) {
-        this.stats = response.stats;
-        this.actionLog = response.stats.actionLog || [];
-      }
-    } catch (error) {
-      console.error('FocusGuard: Error loading stats:', error);
-    }
-  }
-
-  /**
-   * Setup event listeners
-   */
-  setupEventListeners() {
-    // Master toggle
-    const masterToggle = document.getElementById('masterToggle');
-    masterToggle.addEventListener('change', (e) => {
-      this.toggleExtension(e.target.checked);
-    });
-
-    // Mode buttons removed - using block-list-only model
-
-    // Filter mode
-    document.querySelectorAll('input[name="filterMode"]').forEach(radio => {
-      radio.addEventListener('change', (e) => {
-        this.setFilterMode(e.target.value);
-      });
-    });
-
-    // Quick actions
-    document.getElementById('blockDomainBtn').addEventListener('click', () => {
-      this.addDomainToList('block');
-    });
-
-    document.getElementById('allowDomainBtn').addEventListener('click', () => {
-      this.addDomainToList('allow');
-    });
-
-    // Footer buttons
-    document.getElementById('openSettings').addEventListener('click', () => {
-      chrome.runtime.openOptionsPage();
-    });
-
-    document.getElementById('openStats').addEventListener('click', () => {
-      chrome.runtime.openOptionsPage();
-    });
-  }
-
-  /**
-   * Update UI with current data
-   */
-  updateUI() {
-    // Update page URL
-    if (this.currentTab) {
-      const urlText = document.querySelector('.url-text');
-      urlText.textContent = this.currentTab.url;
-      urlText.title = this.currentTab.url;
-    }
-
-    // Update status indicator
-    const statusDot = document.getElementById('statusDot');
-    const statusText = document.getElementById('statusText');
-    const masterToggle = document.getElementById('masterToggle');
-    
-    const isEnabled = this.settings.extensionEnabled !== false;
-    masterToggle.checked = isEnabled;
-    
-    if (isEnabled) {
-      statusDot.classList.remove('inactive');
-      statusText.textContent = 'Active';
-    } else {
-      statusDot.classList.add('inactive');
-      statusText.textContent = 'Inactive';
-    }
-
-    // Mode display removed - using block-list-only model
-
-    // Update filter mode
-    const filterMode = this.settings.filterMode || 'blur';
-    document.querySelector(`input[name="filterMode"][value="${filterMode}"]`).checked = true;
-
-    // Update stats
-    this.updateStats();
-
-    // Update action log
-    this.updateActionLog();
-  }
-
-  /**
-   * Update statistics display
-   */
-  updateStats() {
-    const totalBlocks = this.stats.totalBlocksToday || 0;
-    const textBlocks = this.stats.blockedTexts?.count || 0;
-    const imageBlocks = this.stats.blockedImages?.count || 0;
-    const videoBlocks = this.stats.blockedVideos?.count || 0;
-
-    document.getElementById('blockCount').textContent = totalBlocks;
-    document.getElementById('textBlocks').textContent = textBlocks;
-    document.getElementById('imageBlocks').textContent = imageBlocks;
-    document.getElementById('videoBlocks').textContent = videoBlocks;
-  }
-
-  /**
-   * Update action log display
-   */
-  updateActionLog() {
-    const actionLog = document.getElementById('actionLog');
-    const recentActions = this.actionLog.slice(-5).reverse();
-
-    if (recentActions.length === 0) {
-      actionLog.innerHTML = `
-        <div class="log-entry">
-          <span class="log-time">Just now</span>
-          <span class="log-action">Extension loaded</span>
-        </div>
-      `;
-      return;
-    }
-
-    actionLog.innerHTML = recentActions.map(action => {
-      const time = this.formatTime(action.timestamp);
-      const actionText = this.formatActionText(action);
-      
-      return `
-        <div class="log-entry">
-          <span class="log-time">${time}</span>
-          <span class="log-action">${actionText}</span>
-        </div>
-      `;
-    }).join('');
-  }
-
-  /**
-   * Format timestamp for display
-   */
-  formatTime(timestamp) {
-    const now = Date.now();
-    const diff = now - timestamp;
-    
-    if (diff < 60000) return 'Just now';
-    if (diff < 3600000) return `${Math.floor(diff / 60000)}m ago`;
-    if (diff < 86400000) return `${Math.floor(diff / 3600000)}h ago`;
-    return new Date(timestamp).toLocaleDateString();
-  }
-
-  /**
-   * Format action text for display
-   */
-  formatActionText(action) {
-    switch (action.action) {
-      case 'block':
-        return `Blocked ${action.type} (${action.category})`;
-      case 'domain_blocked':
-        return `Added ${action.domain} to block list`;
-      case 'domain_allowed':
-        return `Added ${action.domain} to allow list`;
-      case 'settings_updated':
-        return 'Settings updated';
-      default:
-        return action.action || 'Unknown action';
-    }
-  }
-
-  /**
-   * Toggle extension on/off
-   */
-  async toggleExtension(enabled) {
-    try {
-      const response = await chrome.runtime.sendMessage({
-        action: 'toggleExtension',
-        tabId: this.currentTab.id,
-        enabled: enabled
-      });
-
-      if (response.success) {
-        this.showToast(
-          enabled ? 'Content filtering enabled' : 'Content filtering disabled',
-          'success'
-        );
-        
-        // Update status indicator
-        const statusDot = document.getElementById('statusDot');
-        const statusText = document.getElementById('statusText');
-        
-        if (enabled) {
-          statusDot.classList.remove('inactive');
-          statusText.textContent = 'Active';
-        } else {
-          statusDot.classList.add('inactive');
-          statusText.textContent = 'Inactive';
-        }
-      } else {
-        throw new Error(response.error);
-      }
-    } catch (error) {
-      console.error('FocusGuard: Error toggling extension:', error);
-      this.showToast('Error toggling extension', 'error');
-      
-      // Revert toggle
-      document.getElementById('masterToggle').checked = !enabled;
-    }
-  }
-
-  // setMode method removed - using block-list-only model
-
-  /**
-   * Set filter mode
-   */
-  async setFilterMode(filterMode) {
-    try {
-      const response = await chrome.runtime.sendMessage({
-        action: 'updateSettings',
-        settings: { filterMode: filterMode }
-      });
-
-      if (response.success) {
-        this.settings.filterMode = filterMode;
-        this.showToast(`Filter mode set to ${filterMode}`, 'success');
-      } else {
-        throw new Error(response.error);
-      }
-    } catch (error) {
-      console.error('FocusGuard: Error setting filter mode:', error);
-      this.showToast('Error updating filter mode', 'error');
-    }
-  }
-
-  /**
-   * Add domain to block/allow list
-   */
-  async addDomainToList(listType) {
-    if (!this.currentTab) {
-      this.showToast('No current tab found', 'error');
-      return;
-    }
-
-    const domain = new URL(this.currentTab.url).hostname;
-    
-    try {
-      const response = await chrome.runtime.sendMessage({
-        action: 'addDomainToList',
-        domain: domain,
-        listType: listType
-      });
-
-      if (response.success) {
-        const action = listType === 'block' ? 'blocked' : 'allowed';
-        this.showToast(`Domain ${action}: ${domain}`, 'success');
-        
-        // Update settings locally
-        if (listType === 'block') {
-          if (!this.settings.blockedDomains) this.settings.blockedDomains = [];
-          if (!this.settings.blockedDomains.includes(domain)) {
-            this.settings.blockedDomains.push(domain);
-          }
-        } else {
-          if (!this.settings.allowedDomains) this.settings.allowedDomains = [];
-          if (!this.settings.allowedDomains.includes(domain)) {
-            this.settings.allowedDomains.push(domain);
-          }
-        }
-      } else {
-        throw new Error(response.error);
-      }
-    } catch (error) {
-      console.error('FocusGuard: Error adding domain to list:', error);
-      this.showToast('Error updating domain list', 'error');
-    }
-  }
-
-  /**
-   * Show/hide loading overlay
-   */
-  showLoading(show) {
-    const overlay = document.getElementById('loadingOverlay');
-    overlay.style.display = show ? 'flex' : 'none';
-  }
-
-  /**
-   * Show toast notification
-   */
-  showToast(message, type = 'info') {
-    const toast = document.getElementById('toast');
-    const toastMessage = document.getElementById('toastMessage');
-    
-    toastMessage.textContent = message;
-    toast.className = `toast ${type}`;
-    
-    // Show toast
-    setTimeout(() => {
-      toast.classList.add('show');
-    }, 10);
-    
-    // Hide after 3 seconds
-    setTimeout(() => {
-      toast.classList.remove('show');
-    }, 3000);
-  }
-
-  /**
-   * Refresh data
-   */
-  async refresh() {
-    await this.loadSettings();
-    await this.loadStats();
-    this.updateUI();
+    await loadSettings();
+    await loadStats();
+    setupEventListeners();
+  } catch (error) {
+    console.error('FocusGuard: Failed to initialize popup', error);
   }
 }
 
-// Initialize popup when DOM is ready
-document.addEventListener('DOMContentLoaded', () => {
-  new PopupManager();
-});
+function updatePageUrl(tab) {
+  const pageUrlElement = document.getElementById('pageUrl');
+  if (!pageUrlElement) {
+    return;
+  }
+
+  try {
+    const hostname = tab?.url ? new URL(tab.url).hostname : 'Unavailable';
+    pageUrlElement.textContent = hostname || 'Unavailable';
+  } catch (error) {
+    pageUrlElement.textContent = 'Unavailable';
+  }
+}
+
+async function loadSettings() {
+  try {
+    const response = await chrome.runtime.sendMessage({ action: 'getSettings' });
+    if (response?.success) {
+      currentSettings = response.settings || {};
+      const isEnabled = currentSettings.extensionEnabled !== false;
+      updateStatusToggle(isEnabled);
+      updateModeButtons(currentSettings.filterMode || 'blur');
+    }
+  } catch (error) {
+    console.error('FocusGuard: Unable to load settings', error);
+  }
+}
+
+async function loadStats() {
+  try {
+    let counts = {};
+
+    if (typeof AnalyticsManager !== 'undefined' && AnalyticsManager.getTodayBlockCounts) {
+      counts = await AnalyticsManager.getTodayBlockCounts() || {};
+    } else {
+      const response = await chrome.runtime.sendMessage({ action: 'getStats' });
+      if (response?.success && response.stats) {
+        counts = {
+          text: response.stats.blockedTexts?.count ?? 0,
+          images: response.stats.blockedImages?.count ?? 0,
+          videos: response.stats.blockedVideos?.count ?? 0,
+          total: response.stats.totalBlocksToday ?? 0
+        };
+      }
+    }
+
+    const total = counts.total ?? ((counts.text || 0) + (counts.images || 0) + (counts.videos || 0));
+    document.getElementById('totalBlockedCount').textContent = total || 0;
+    document.getElementById('textBlockedCount').textContent = counts.text || 0;
+    document.getElementById('imageBlockedCount').textContent = counts.images || 0;
+  } catch (error) {
+    console.error('FocusGuard: Unable to load stats', error);
+  }
+}
+
+function setupEventListeners() {
+  document.getElementById('extensionToggle')?.addEventListener('change', (event) => {
+    toggleExtension(event.target.checked);
+  });
+
+  document.getElementById('blurModeBtn')?.addEventListener('click', () => {
+    setFilterMode('blur');
+  });
+
+  document.getElementById('blockModeBtn')?.addEventListener('click', () => {
+    setFilterMode('block');
+  });
+
+  document.getElementById('blockDomainBtn')?.addEventListener('click', () => {
+    handleDomainAction('block');
+  });
+
+  document.getElementById('allowDomainBtn')?.addEventListener('click', () => {
+    handleDomainAction('allow');
+  });
+
+  document.getElementById('settingsBtn')?.addEventListener('click', openSettingsPage);
+  document.getElementById('openSettingsLink')?.addEventListener('click', (event) => {
+    event.preventDefault();
+    openSettingsPage();
+  });
+}
+
+function updateStatusToggle(isEnabled) {
+  const statusText = document.getElementById('statusText');
+  const toggle = document.getElementById('extensionToggle');
+
+  if (toggle) {
+    toggle.checked = isEnabled;
+  }
+
+  if (statusText) {
+    statusText.textContent = isEnabled ? '● Active' : '● Paused';
+    statusText.classList.toggle('inactive', !isEnabled);
+  }
+}
+
+function updateModeButtons(mode) {
+  const blurButton = document.getElementById('blurModeBtn');
+  const blockButton = document.getElementById('blockModeBtn');
+
+  if (blurButton) {
+    blurButton.classList.toggle('active', mode === 'blur');
+  }
+
+  if (blockButton) {
+    blockButton.classList.toggle('active', mode === 'block');
+  }
+}
+
+async function toggleExtension(enabled) {
+  if (!currentTab?.id) {
+    return;
+  }
+
+  try {
+    const response = await chrome.runtime.sendMessage({
+      action: 'toggleExtension',
+      tabId: currentTab.id,
+      enabled
+    });
+
+    if (!response?.success) {
+      throw new Error(response?.error || 'toggle_failed');
+    }
+
+    updateStatusToggle(enabled);
+  } catch (error) {
+    console.error('FocusGuard: Failed to toggle extension', error);
+    updateStatusToggle(!enabled);
+    alert('❌ Unable to update filtering status for this tab.');
+  }
+}
+
+async function setFilterMode(mode) {
+  if (!mode || currentSettings.filterMode === mode) {
+    updateModeButtons(mode || currentSettings.filterMode || 'blur');
+    return;
+  }
+
+  currentSettings.filterMode = mode;
+
+  try {
+    const response = await chrome.runtime.sendMessage({
+      action: 'updateSettings',
+      settings: currentSettings
+    });
+
+    if (!response?.success) {
+      throw new Error(response?.error || 'update_failed');
+    }
+
+    if (response.settings) {
+      currentSettings = response.settings;
+    }
+
+    updateModeButtons(mode);
+  } catch (error) {
+    console.error('FocusGuard: Failed to update filter mode', error);
+    alert('❌ Unable to update filter mode.');
+  }
+}
+
+async function handleDomainAction(action) {
+  if (!currentTab?.url) {
+    alert('❌ Unable to detect the current domain.');
+    return;
+  }
+
+  const domain = getDomainFromUrl(currentTab.url);
+  if (!domain) {
+    alert('❌ Unable to detect the current domain.');
+    return;
+  }
+
+  try {
+    const response = await chrome.runtime.sendMessage({
+      action: 'addDomainToList',
+      domain,
+      listType: action === 'block' ? 'block' : 'allow'
+    });
+
+    if (!response?.success) {
+      throw new Error(response?.error || 'domain_update_failed');
+    }
+
+    const message = action === 'block'
+      ? `✅ ${domain} added to block list`
+      : `✅ ${domain} added to allow list`;
+    alert(message);
+  } catch (error) {
+    console.error('FocusGuard: Failed to update domain list', error);
+    alert('❌ Unable to update domain preferences.');
+  }
+}
+
+function getDomainFromUrl(url) {
+  try {
+    return new URL(url).hostname;
+  } catch (error) {
+    return '';
+  }
+}
+
+function openSettingsPage() {
+  if (chrome.runtime.openOptionsPage) {
+    chrome.runtime.openOptionsPage();
+  }
+}

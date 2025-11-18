@@ -16,6 +16,8 @@ const ALL_CATEGORIES = [
 
 let currentSettings = {};
 let customCategories = [];
+let saveTimeout = null;
+const SAVE_DEBOUNCE_MS = 500;
 
 async function initOptions() {
   await loadSettings();
@@ -29,12 +31,15 @@ async function loadSettings() {
     const response = await chrome.runtime.sendMessage({ action: 'getSettings' });
     
     if (response.success) {
-      currentSettings = response.settings;
+      currentSettings = response.settings || {};
       
-      const blockedCategories = currentSettings.blockedCategories || DEFAULT_BLOCKED_CATEGORIES;
-      if (blockedCategories.length === 0) {
-        currentSettings.blockedCategories = DEFAULT_BLOCKED_CATEGORIES;
-        await saveSettings();
+      const blockedCategories = currentSettings.blockedCategories && currentSettings.blockedCategories.length
+        ? currentSettings.blockedCategories
+        : [...DEFAULT_BLOCKED_CATEGORIES];
+      
+      if (!currentSettings.blockedCategories || currentSettings.blockedCategories.length === 0) {
+        currentSettings.blockedCategories = [...DEFAULT_BLOCKED_CATEGORIES];
+        await saveAllSettings();
       }
       
       customCategories = blockedCategories.filter(cat => !ALL_CATEGORIES.includes(cat));
@@ -49,15 +54,25 @@ async function loadSettings() {
 
 function applySettingsToUI() {
   const filterMode = currentSettings.filterMode || 'blur';
-  document.querySelector(`input[name="filterMode"][value="${filterMode}"]`).checked = true;
+  const filterInput = document.querySelector(`input[name="filterMode"][value="${filterMode}"]`);
+  if (filterInput) {
+    filterInput.checked = true;
+  }
   
   const sensitivity = currentSettings.sensitivity || 'medium';
   const sensitivityMap = { low: 0, medium: 1, high: 2 };
-  document.getElementById('sensitivitySlider').value = sensitivityMap[sensitivity] || 1;
+  const sensitivitySlider = document.getElementById('sensitivitySlider');
+  if (sensitivitySlider) {
+    sensitivitySlider.value = sensitivityMap[sensitivity] || 1;
+  }
   updateSensitivityText(sensitivity);
   
   const extensionToggle = document.getElementById('extensionToggle');
-  extensionToggle.checked = true;
+  const isEnabled = currentSettings.extensionEnabled !== false;
+  if (extensionToggle) {
+    extensionToggle.checked = isEnabled;
+  }
+  updateStatusMessage(isEnabled);
 }
 
 async function renderCategoryGrid() {
@@ -124,10 +139,8 @@ async function toggleCategory(category) {
   }
   
   currentSettings.blockedCategories = blockedCategories;
-  await saveSettings();
   await renderCategoryGrid();
-  
-  applyFiltersToAllTabs();
+  scheduleAutoSave();
 }
 
 async function addCustomCategory() {
@@ -153,11 +166,9 @@ async function addCustomCategory() {
   
   input.value = '';
   
-  await saveSettings();
   await renderCategoryGrid();
+  scheduleAutoSave();
   showToast(`Added "${category}" to blocked categories`, 'success');
-  
-  applyFiltersToAllTabs();
 }
 
 async function resetDefaults() {
@@ -168,11 +179,9 @@ async function resetDefaults() {
   currentSettings.blockedCategories = [...DEFAULT_BLOCKED_CATEGORIES];
   customCategories = [];
   
-  await saveSettings();
   await renderCategoryGrid();
+  scheduleAutoSave();
   showToast('Reset to defaults', 'success');
-  
-  applyFiltersToAllTabs();
 }
 
 async function saveSettings() {
@@ -182,13 +191,26 @@ async function saveSettings() {
       settings: currentSettings
     });
     
-    if (response.success) {
-      console.log('Settings saved successfully');
+    if (!response || !response.success) {
+      throw new Error(response?.error || 'unable_to_save');
     }
+    
+    if (response.settings) {
+      currentSettings = response.settings;
+    }
+
+    return response;
   } catch (error) {
     console.error('FocusGuard: Error saving settings:', error);
     showToast('Error saving settings', 'error');
+    throw error;
   }
+}
+
+async function saveAllSettings() {
+  const response = await saveSettings();
+  applyFiltersToAllTabs();
+  return response;
 }
 
 async function loadAnalytics() {
@@ -275,6 +297,21 @@ function updateSensitivityText(level) {
   text.innerHTML = `Current: <strong>${level.charAt(0).toUpperCase() + level.slice(1)}</strong> - ${descriptions[level]}`;
 }
 
+function updateStatusMessage(isEnabled) {
+  const statusMessage = document.getElementById('statusMessage');
+  if (!statusMessage) {
+    return;
+  }
+
+  if (isEnabled) {
+    statusMessage.textContent = '✅ Active on all websites';
+    statusMessage.style.color = '#10B981';
+  } else {
+    statusMessage.textContent = '⛔ Disabled';
+    statusMessage.style.color = '#EF4444';
+  }
+}
+
 function applyFiltersToAllTabs() {
   chrome.tabs.query({}, (tabs) => {
     tabs.forEach(tab => {
@@ -288,36 +325,92 @@ function applyFiltersToAllTabs() {
   });
 }
 
-function setupEventListeners() {
-  document.getElementById('extensionToggle')?.addEventListener('change', async (e) => {
-    const statusMessage = document.getElementById('statusMessage');
-    if (e.target.checked) {
-      statusMessage.textContent = '✅ Active on all websites';
-      statusMessage.style.color = '#10B981';
-    } else {
-      statusMessage.textContent = '⛔ Disabled';
-      statusMessage.style.color = '#EF4444';
+function scheduleAutoSave() {
+  const status = document.getElementById('saveStatus');
+  if (!status) {
+    return;
+  }
+
+  clearTimeout(saveTimeout);
+  status.textContent = '💾 Saving...';
+
+  saveTimeout = setTimeout(async () => {
+    try {
+      await saveAllSettings();
+      status.textContent = '✅ Saved';
+      showSaveNotification('✅ Preferences saved successfully');
+      setTimeout(() => {
+        status.textContent = '';
+      }, 2000);
+    } catch (error) {
+      status.textContent = '❌ Save failed';
+      showSaveNotification('❌ Failed to save preferences', 'error');
     }
-    showToast(e.target.checked ? 'Extension enabled' : 'Extension disabled', 'info');
+  }, SAVE_DEBOUNCE_MS);
+}
+
+async function handleManualSave() {
+  const status = document.getElementById('saveStatus');
+  clearTimeout(saveTimeout);
+  if (status) {
+    status.textContent = '💾 Saving...';
+  }
+
+  try {
+    await saveAllSettings();
+    if (status) {
+      status.textContent = '✅ Saved';
+      setTimeout(() => {
+        status.textContent = '';
+      }, 2000);
+    }
+    showSaveNotification('✅ All preferences saved successfully');
+  } catch (error) {
+    if (status) {
+      status.textContent = '❌ Save failed';
+    }
+    showSaveNotification('❌ Failed to save preferences', 'error');
+  }
+}
+
+function showSaveNotification(message, type = 'success') {
+  const notification = document.getElementById('saveNotification');
+  if (!notification) {
+    return;
+  }
+
+  notification.textContent = message;
+  notification.className = `save-notification save-${type} show`;
+
+  setTimeout(() => {
+    notification.classList.remove('show');
+  }, 3000);
+}
+
+function setupEventListeners() {
+  document.getElementById('extensionToggle')?.addEventListener('change', (e) => {
+    const enabled = e.target.checked;
+    currentSettings.extensionEnabled = enabled;
+    updateStatusMessage(enabled);
+    scheduleAutoSave();
+    showToast(enabled ? 'Extension enabled' : 'Extension disabled', 'info');
   });
   
   document.querySelectorAll('input[name="filterMode"]').forEach(radio => {
-    radio.addEventListener('change', async (e) => {
+    radio.addEventListener('change', (e) => {
       currentSettings.filterMode = e.target.value;
-      await saveSettings();
+      scheduleAutoSave();
       showToast(`Filter mode changed to ${e.target.value}`, 'success');
-      applyFiltersToAllTabs();
     });
   });
   
-  document.getElementById('sensitivitySlider')?.addEventListener('change', async (e) => {
+  document.getElementById('sensitivitySlider')?.addEventListener('change', (e) => {
     const levels = ['low', 'medium', 'high'];
-    const level = levels[parseInt(e.target.value)];
+    const level = levels[parseInt(e.target.value, 10)] || 'medium';
     currentSettings.sensitivity = level;
     updateSensitivityText(level);
-    await saveSettings();
+    scheduleAutoSave();
     showToast(`Sensitivity set to ${level}`, 'success');
-    applyFiltersToAllTabs();
   });
   
   document.getElementById('addCustomCategoryBtn')?.addEventListener('click', addCustomCategory);
@@ -331,6 +424,11 @@ function setupEventListeners() {
   document.getElementById('resetDefaultsBtn')?.addEventListener('click', resetDefaults);
   
   document.getElementById('resetStatsBtn')?.addEventListener('click', resetStats);
+  
+  document.getElementById('saveButton')?.addEventListener('click', (e) => {
+    e.preventDefault();
+    handleManualSave();
+  });
 }
 
 function showToast(message, type = 'info') {
@@ -342,5 +440,12 @@ function showToast(message, type = 'info') {
     toast.className = 'toast';
   }, 3000);
 }
+
+document.addEventListener('change', (event) => {
+  if (!event.isTrusted || event.target?.id === 'saveButton') {
+    return;
+  }
+  scheduleAutoSave();
+});
 
 document.addEventListener('DOMContentLoaded', initOptions);

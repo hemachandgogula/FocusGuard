@@ -178,8 +178,9 @@ class BackgroundService {
   /**
    * Update settings in storage
    */
-  async handleUpdateSettings(settings, sendResponse) {
+  async handleUpdateSettings(settings = {}, sendResponse) {
     await StorageManager.updateSettings(settings);
+    const updatedSettings = await StorageManager.getAllSettings();
     
     const tabs = await chrome.tabs.query({});
     for (const tab of tabs) {
@@ -190,14 +191,14 @@ class BackgroundService {
       try {
         await this.sendMessageToContentScript(tab.id, {
           action: 'settingsUpdated',
-          settings
+          settings: updatedSettings
         }, { retries: 2, initialDelay: 200, skipInitialPing: true });
       } catch (error) {
         console.debug('FocusGuard: Unable to deliver settings update to tab', tab.id, error?.message || error);
       }
     }
     
-    sendResponse({ success: true });
+    sendResponse({ success: true, settings: updatedSettings });
   }
 
   /**

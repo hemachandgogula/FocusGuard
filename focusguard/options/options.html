@@ -78,7 +78,11 @@
             </div>
 
             <div class="section-actions">
-                <button id="resetDefaultsBtn" class="btn btn-secondary btn-small">
+                <button id="saveButton" class="btn btn-primary" type="button">
+                    💾 Save Preferences
+                </button>
+                <span id="saveStatus" class="save-status"></span>
+                <button id="resetDefaultsBtn" class="btn btn-secondary btn-small" type="button">
                     Reset to Defaults
                 </button>
             </div>
@@ -120,6 +124,7 @@
 
     </div>
 
+    <div class="save-notification" id="saveNotification"></div>
     <div class="toast" id="toast"></div>
 
     <script src="../lib/storage-manager.js"></script>

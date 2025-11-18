@@ -26,6 +26,16 @@ class DOMScanner {
       '[data-focusguard-ignore]',
       '.focusguard-ignored'
     ];
+
+    this.priorityTextSelectors = [
+      'yt-formatted-string[role="button"]',
+      'h2 a',
+      'a[aria-label]',
+      '[data-description]',
+      '.comment',
+      'p',
+      'span'
+    ];
   }
 
   /**
@@ -79,7 +89,9 @@ class DOMScanner {
    * Scan initial content on page load
    */
   scanInitialContent() {
-    const content = this.scanElement(document.body);
+    const prioritizedText = this.extractPriorityTextContent(document.body);
+    const baseContent = this.scanElement(document.body);
+    const content = [...prioritizedText, ...baseContent];
     if (content.length > 0 && this.contentCallback) {
       this.contentCallback(content);
     }
@@ -117,6 +129,11 @@ class DOMScanner {
           if (node.nodeType === Node.ELEMENT_NODE) {
             const extractedContent = this.scanElement(node);
             content.push(...extractedContent);
+
+            const prioritizedContent = this.extractPriorityTextContent(node);
+            if (prioritizedContent.length > 0) {
+              content.push(...prioritizedContent);
+            }
           }
         });
       } else if (mutation.type === 'characterData') {
@@ -125,6 +142,11 @@ class DOMScanner {
         if (parentElement && !this.shouldIgnoreElement(parentElement)) {
           const extractedContent = this.scanElement(parentElement);
           content.push(...extractedContent);
+
+          const prioritizedContent = this.extractPriorityTextContent(parentElement);
+          if (prioritizedContent.length > 0) {
+            content.push(...prioritizedContent);
+          }
         }
       }
     });
@@ -220,6 +242,66 @@ class DOMScanner {
       .replace(/[\r\n\t]/g, ' ');  // Replace newlines and tabs
     
     return text;
+  }
+
+  /**
+   * Extract prioritized text content using targeted selectors
+   * @param {Element|Document} root - Root element to search
+   * @returns {Array} Array of prioritized content objects
+   */
+  extractPriorityTextContent(root = document) {
+    const content = [];
+    const extractedTexts = new Set();
+
+    if (!root || typeof root.querySelectorAll !== 'function') {
+      return content;
+    }
+
+    for (const selector of this.priorityTextSelectors) {
+      if (content.length >= 50) {
+        break;
+      }
+
+      const elements = root.querySelectorAll(selector);
+      elements.forEach(el => {
+        if (content.length >= 50) {
+          return;
+        }
+
+        if (this.shouldIgnoreElement(el) || this.processedElements.has(el)) {
+          return;
+        }
+
+        let text = (el.textContent || '').trim();
+        if (!text && typeof el.getAttribute === 'function') {
+          const ariaLabel = el.getAttribute('aria-label');
+          if (ariaLabel) {
+            text = ariaLabel.trim();
+          }
+        }
+
+        if (!text || text.length < 5 || text.length > 1000) {
+          return;
+        }
+
+        if (extractedTexts.has(text)) {
+          return;
+        }
+
+        extractedTexts.add(text);
+
+        content.push({
+          element: el,
+          type: 'text',
+          data: text,
+          domain: window.location.hostname
+        });
+
+        this.processedElements.add(el);
+      });
+    }
+
+    return content;
   }
 
   /**
