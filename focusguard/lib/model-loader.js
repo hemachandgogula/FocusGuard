@@ -23,7 +23,8 @@ class ModelLoader {
 
     try {
       // Check if ONNX Runtime Web is available
-      if (typeof ort === 'undefined') {
+      const runtimeScope = typeof globalThis !== 'undefined' ? globalThis : self;
+      if (typeof runtimeScope.ort === 'undefined') {
         // Load ONNX Runtime Web script
         await this.loadONNXRuntime();
       }
@@ -41,13 +42,28 @@ class ModelLoader {
    * @returns {Promise<void>}
    */
   async loadONNXRuntime() {
-    return new Promise((resolve, reject) => {
-      const script = document.createElement('script');
-      script.src = chrome.runtime.getURL('lib/onnx-runtime-web.min.js');
-      script.onload = resolve;
-      script.onerror = reject;
-      document.head.appendChild(script);
-    });
+    // Service workers and other worker contexts do not have document access
+    if (typeof importScripts === 'function') {
+      try {
+        importScripts(chrome.runtime.getURL('lib/onnx-runtime-web.min.js'));
+        return;
+      } catch (error) {
+        console.error('FocusGuard: Failed to load ONNX Runtime via importScripts', error);
+        throw error;
+      }
+    }
+
+    if (typeof document !== 'undefined') {
+      return new Promise((resolve, reject) => {
+        const script = document.createElement('script');
+        script.src = chrome.runtime.getURL('lib/onnx-runtime-web.min.js');
+        script.onload = resolve;
+        script.onerror = reject;
+        document.head.appendChild(script);
+      });
+    }
+
+    throw new Error('FocusGuard: Unsupported environment for loading ONNX Runtime');
   }
 
   /**

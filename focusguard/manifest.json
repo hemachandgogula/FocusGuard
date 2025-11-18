@@ -18,9 +18,15 @@
   "content_scripts": [
     {
       "matches": ["<all_urls>"],
-      "js": ["contentScript.js"],
+      "js": [
+        "lib/dom-scanner.js",
+        "lib/filter-engine.js",
+        "lib/keyword-fallback.js",
+        "lib/onnx-runtime-web.min.js",
+        "contentScript.js"
+      ],
       "css": ["styles/content-filters.css"],
-      "run_at": "document_idle"
+      "run_at": "document_end"
     }
   ],
   "action": {
