@@ -43,18 +43,40 @@ class FilterEngine {
    * @param {Object} settings - User settings
    * @returns {boolean} True if should block
    */
-  shouldBlock(category, confidence, settings) {
+  shouldBlock(category, confidence, settings = {}) {
     const sensitivity = settings.sensitivity || 'medium';
-    const threshold = this.sensitivityThresholds[sensitivity];
-    const blockedCategories = settings.blockedCategories || [];
-    
-    // Check confidence threshold
-    if (confidence < threshold) {
-      return false; // If confidence is too low, don't block
+    const threshold = this.sensitivityThresholds[sensitivity] ?? 0.7;
+    const blockedCategories = Array.isArray(settings.blockedCategories) ? settings.blockedCategories : [];
+
+    if (!category || blockedCategories.length === 0) {
+      return false;
     }
-    
-    // Simple logic: block only if category is in block list
-    return blockedCategories.includes(category);
+
+    if (typeof confidence === 'number' && confidence < threshold) {
+      return false;
+    }
+
+    const normalizedCategory = this.normalizeCategory(category);
+
+    return blockedCategories.some(blocked => {
+      const normalizedBlocked = this.normalizeCategory(blocked);
+      return normalizedCategory === normalizedBlocked ||
+             normalizedCategory.includes(normalizedBlocked) ||
+             normalizedBlocked.includes(normalizedCategory);
+    });
+  }
+
+  /**
+   * Normalize category text for comparison
+   * @param {string} value - Category text
+   * @returns {string} Normalized category value
+   */
+  normalizeCategory(value) {
+    return (value || '')
+      .toString()
+      .trim()
+      .toLowerCase()
+      .replace(/\s+/g, ' ');
   }
 
   /**

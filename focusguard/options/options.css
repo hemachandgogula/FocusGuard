@@ -403,7 +403,47 @@ body {
 }
 
 .section-actions {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: 12px;
   margin-top: 16px;
+  padding-top: 16px;
+  border-top: 1px solid #E2E8F0;
+}
+
+.save-status {
+  font-size: 13px;
+  color: #10B981;
+  font-weight: 500;
+  animation: fadeIn 0.3s ease;
+}
+
+.save-notification {
+  position: fixed;
+  bottom: 20px;
+  right: 20px;
+  padding: 12px 20px;
+  background: #10B981;
+  color: white;
+  border-radius: 8px;
+  box-shadow: 0 4px 12px rgba(0, 0, 0, 0.15);
+  opacity: 0;
+  transition: opacity 0.3s ease;
+  z-index: 1000;
+  font-weight: 500;
+}
+
+.save-notification.show {
+  opacity: 1;
+}
+
+.save-notification.save-error {
+  background: #EF4444;
+}
+
+.save-notification.save-success {
+  background: #10B981;
 }
 
 .stats-grid {

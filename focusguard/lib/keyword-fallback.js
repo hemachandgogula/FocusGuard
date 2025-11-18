@@ -3,6 +3,41 @@
  * Provides keyword-based classification when ML models are unavailable
  */
 
+const KEYWORD_DATABASE = {
+  'social-media': {
+    keywords: ['instagram', 'tiktok', 'snapchat', 'reels', 'reel', 'tweet', 'facebook', 'reddit', 'dancing', 'viral', 'trending'],
+    confidence: 0.9
+  },
+  'adult-content': {
+    keywords: ['xxx', 'adult', 'porn', 'nude', 'nsfw', '18+', 'onlyfans', 'sensual'],
+    confidence: 0.95
+  },
+  'entertainment': {
+    keywords: ['movie', 'film', 'entertainment', 'watch', 'video', 'music', 'song', 'show', 'concert', 'series'],
+    confidence: 0.7
+  },
+  'gaming': {
+    keywords: ['game', 'gaming', 'play', 'gamer', 'esports', 'twitch', 'discord', 'livestream'],
+    confidence: 0.8
+  },
+  'violence': {
+    keywords: ['fight', 'war', 'kill', 'death', 'violent', 'attack', 'weapon', 'blood'],
+    confidence: 0.85
+  },
+  'cruelty': {
+    keywords: ['animal', 'abuse', 'cruel', 'cruelty', 'torture', 'hurt', 'harm'],
+    confidence: 0.85
+  },
+  'politics': {
+    keywords: ['politics', 'political', 'democrat', 'republican', 'election', 'president', 'vote', 'campaign'],
+    confidence: 0.8
+  },
+  'news': {
+    keywords: ['news', 'breaking', 'headline', 'report', 'story', 'update'],
+    confidence: 0.7
+  }
+};
+
 class KeywordFallback {
   constructor() {
     this.predefinedBlacklist = this.getPredefinedBlacklist();
@@ -27,82 +62,100 @@ class KeywordFallback {
    * @param {string} domain - Domain name
    * @returns {Object} Classification result {category, confidence}
    */
-  classifyContent(text, domain) {
-    if (!text && !domain) {
+  classifyContent(text, domain = '') {
+    try {
+      if (!text && !domain) {
+        return { category: 'unknown', confidence: 0.0 };
+      }
+
+      if (domain && this.isDomainBlacklisted(domain)) {
+        return { category: 'Adult Content', confidence: 0.9 };
+      }
+
+      if (domain && this.isDomainWhitelisted(domain)) {
+        return { category: 'Education', confidence: 0.8 };
+      }
+
+      if (!text) {
+        console.warn('FocusGuard: classifyContent received empty text');
+        return { category: 'unknown', confidence: 0.0 };
+      }
+
+      if (typeof text !== 'string') {
+        console.warn('FocusGuard: Invalid text input for classification', typeof text, text);
+        text = String(text);
+      }
+
+      const result = this.classifyByText(text, domain);
+      if (!result || !result.category) {
+        return { category: 'unknown', confidence: 0.0 };
+      }
+
+      return result;
+    } catch (error) {
+      console.error('FocusGuard: Error in classifyContent', error);
       return { category: 'unknown', confidence: 0.0 };
     }
-
-    // Check domain blacklist first
-    if (domain && this.isDomainBlacklisted(domain)) {
-      return { category: 'Adult', confidence: 0.9 };
-    }
-
-    // Check domain whitelist
-    if (domain && this.isDomainWhitelisted(domain)) {
-      return { category: 'Education', confidence: 0.8 };
-    }
-
-    // Classify by text keywords
-    if (text) {
-      const textClassification = this.classifyByText(text);
-      return textClassification;
-    }
-
-    return { category: 'unknown', confidence: 0.0 };
   }
 
   /**
    * Classify content by text keywords
    * @param {string} text - Text content
+   * @param {string} domain - Domain name (optional)
    * @returns {Object} Classification result {category, confidence}
    */
-  classifyByText(text) {
-    const lowerText = text.toLowerCase();
-    const scores = {};
+  classifyByText(text, domain = '') {
+    if (!text) {
+      console.warn('FocusGuard: classifyByText received empty text');
+      return { category: 'unknown', confidence: 0.0 };
+    }
 
-    // Calculate scores for each category
-    Object.entries(this.categoryKeywords).forEach(([category, keywords]) => {
-      scores[category] = this.calculateKeywordScore(lowerText, keywords);
-    });
+    if (typeof text !== 'string') {
+      console.warn('FocusGuard: classifyByText received non-string:', typeof text, text);
+      text = String(text);
+    }
 
-    // Find category with highest score
-    let bestCategory = 'unknown';
-    let bestScore = 0;
+    const cleanText = text.trim().toLowerCase();
+    if (!cleanText.length) {
+      return { category: 'unknown', confidence: 0.0 };
+    }
 
-    Object.entries(scores).forEach(([category, score]) => {
-      if (score > bestScore) {
-        bestScore = score;
-        bestCategory = category;
+    let bestMatch = { category: 'unknown', confidence: 0.0 };
+
+    Object.entries(KEYWORD_DATABASE).forEach(([categoryKey, categoryData]) => {
+      const { keywords, confidence: baseConfidence } = categoryData;
+      let matchCount = 0;
+
+      keywords.forEach(keyword => {
+        if (cleanText.includes(keyword)) {
+          matchCount++;
+        }
+      });
+
+      if (matchCount > 0) {
+        const rawConfidence = Math.min(
+          0.95,
+          (matchCount / keywords.length) * baseConfidence
+        );
+        const confidence = Math.max(rawConfidence, Math.min(0.95, baseConfidence));
+
+        if (confidence > bestMatch.confidence) {
+          bestMatch = {
+            category: this.formatCategoryName(categoryKey),
+            confidence: Number(confidence.toFixed(2))
+          };
+        }
       }
     });
 
-    // Convert score to confidence (0-1)
-    const confidence = Math.min(bestScore / 10, 1.0);
+    if (bestMatch.category !== 'unknown') {
+      const preview = text.length > 50 ? `${text.substring(0, 50)}...` : text;
+      console.debug(
+        `FocusGuard: Classified "${preview}" as "${bestMatch.category}" (${bestMatch.confidence})`
+      );
+    }
 
-    return {
-      category: bestCategory,
-      confidence: confidence
-    };
-  }
-
-  /**
-   * Calculate keyword score for text
-   * @param {string} text - Lowercase text
-   * @param {string[]} keywords - Keywords array
-   * @returns {number} Score value
-   */
-  calculateKeywordScore(text, keywords) {
-    let score = 0;
-    
-    keywords.forEach(keyword => {
-      const regex = new RegExp('\\b' + keyword + '\\b', 'gi');
-      const matches = text.match(regex);
-      if (matches) {
-        score += matches.length;
-      }
-    });
-
-    return score;
+    return bestMatch;
   }
 
   /**
@@ -171,66 +224,10 @@ class KeywordFallback {
    * @returns {Object} Category to keywords mapping
    */
   getCategoryKeywords() {
-    return {
-      'Education': [
-        'learn', 'study', 'education', 'school', 'university', 'college', 'course', 'lesson',
-        'tutorial', 'academic', 'research', 'knowledge', 'teaching', 'student', 'professor',
-        'classroom', 'curriculum', 'assignment', 'exam', 'textbook', 'library', 'lecture'
-      ],
-      'Technology': [
-        'software', 'programming', 'code', 'developer', 'tech', 'computer', 'algorithm',
-        'database', 'network', 'security', 'artificial intelligence', 'machine learning',
-        'web development', 'app development', 'coding', 'javascript', 'python', 'java'
-      ],
-      'Science': [
-        'research', 'experiment', 'scientific', 'biology', 'chemistry', 'physics',
-        'mathematics', 'astronomy', 'medicine', 'healthcare', 'laboratory', 'discovery',
-        'innovation', 'breakthrough', 'study', 'analysis', 'data', 'hypothesis'
-      ],
-      'Health': [
-        'health', 'medical', 'fitness', 'wellness', 'nutrition', 'exercise', 'disease',
-        'treatment', 'therapy', 'hospital', 'doctor', 'nurse', 'pharmacy', 'medication',
-        'symptoms', 'diagnosis', 'prevention', 'mental health'
-      ],
-      'Business': [
-        'business', 'finance', 'economy', 'investment', 'marketing', 'sales', 'entrepreneur',
-        'startup', 'company', 'corporate', 'management', 'strategy', 'revenue', 'profit',
-        'market', 'industry', 'commerce', 'trade'
-      ],
-      'News': [
-        'news', 'breaking', 'report', 'journalist', 'article', 'headline', 'update',
-        'current events', 'politics', 'world news', 'local news', 'investigation',
-        'interview', 'press', 'media', 'broadcast'
-      ],
-      'Sports': [
-        'sport', 'game', 'match', 'team', 'player', 'athlete', 'competition', 'tournament',
-        'championship', 'league', 'score', 'victory', 'defeat', 'training', 'coach',
-        'football', 'basketball', 'soccer', 'tennis', 'baseball'
-      ],
-      'Entertainment': [
-        'movie', 'film', 'music', 'concert', 'show', 'theater', 'celebrity', 'actor',
-        'actress', 'director', 'entertainment', 'hollywood', 'netflix', 'streaming',
-        'tv show', 'series', 'drama', 'comedy'
-      ],
-      'Gaming': [
-        'game', 'gaming', 'video game', 'console', 'playstation', 'xbox', 'nintendo',
-        'pc gaming', 'esports', 'multiplayer', 'online game', 'mobile game', 'gamer',
-        'achievement', 'level', 'quest', 'raid', 'pvp', 'mmo'
-      ],
-      'Adult': [
-        'adult', 'porn', 'sex', 'erotic', 'nude', 'explicit', 'xxx', 'nsfw',
-        'sexual', 'intimate', 'sensual', 'mature', '18+', 'adult content'
-      ],
-      'Politics': [
-        'politics', 'political', 'government', 'election', 'vote', 'campaign',
-        'policy', 'democracy', 'republic', 'congress', 'senate', 'president',
-        'minister', 'parliament', 'legislation', 'political party'
-      ],
-      'Agriculture': [
-        'agriculture', 'farming', 'crops', 'livestock', 'harvest', 'soil', 'irrigation',
-        'pesticide', 'fertilizer', 'farm', 'rural', 'agricultural', 'cultivation'
-      ]
-    };
+    return Object.entries(KEYWORD_DATABASE).reduce((acc, [categoryKey, categoryData]) => {
+      acc[this.formatCategoryName(categoryKey)] = [...categoryData.keywords];
+      return acc;
+    }, {});
   }
 
   /**
@@ -355,6 +352,19 @@ class KeywordFallback {
     if (data.categoryKeywords) {
       this.categoryKeywords = { ...data.categoryKeywords };
     }
+  }
+
+  /**
+   * Format category key into readable name
+   * @param {string} categoryKey - Category key
+   * @returns {string} Readable category name
+   */
+  formatCategoryName(categoryKey = '') {
+    return categoryKey
+      .split('-')
+      .filter(Boolean)
+      .map(word => word.charAt(0).toUpperCase() + word.slice(1))
+      .join(' ') || 'Unknown';
   }
 }
 
