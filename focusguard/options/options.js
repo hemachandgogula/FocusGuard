@@ -3,6 +3,38 @@
  * Handles settings page interactions and data management
  */
 
+const PREDEFINED_CATEGORIES = {
+  allow: [
+    'Education',
+    'Science',
+    'Technology',
+    'Philosophy',
+    'Health',
+    'Business',
+    'Finance',
+    'Sports',
+    'Arts',
+    'History',
+    'Nature',
+    'Other'
+  ],
+  block: [
+    'Adult Content',
+    'Entertainment',
+    'Cruelty',
+    'Gambling',
+    'Violence',
+    'Politics',
+    'Gaming',
+    'Social Media',
+    'Shopping',
+    'Other'
+  ]
+};
+
+const DEFAULT_ALLOWED_CATEGORIES = ['Education', 'Science', 'Technology', 'Philosophy'];
+const DEFAULT_BLOCKED_CATEGORIES = ['Adult Content', 'Entertainment', 'Cruelty'];
+
 class OptionsManager {
   constructor() {
     this.settings = {};
@@ -47,9 +79,26 @@ class OptionsManager {
       
       if (response.success) {
         this.settings = response.settings;
+        await this.initializeDefaultCategories();
       }
     } catch (error) {
       console.error('FocusGuard: Error loading settings:', error);
+    }
+  }
+
+  /**
+   * Initialize default categories on first launch
+   */
+  async initializeDefaultCategories() {
+    const allowedCategories = this.settings.allowedCategories || [];
+    const blockedCategories = this.settings.blockedCategories || [];
+    
+    if (allowedCategories.length === 0) {
+      this.settings.allowedCategories = DEFAULT_ALLOWED_CATEGORIES;
+    }
+    
+    if (blockedCategories.length === 0) {
+      this.settings.blockedCategories = DEFAULT_BLOCKED_CATEGORIES;
     }
   }
 
@@ -87,39 +136,72 @@ class OptionsManager {
    */
   setupEventListeners() {
     // Save button
-    document.getElementById('saveBtn').addEventListener('click', () => {
-      this.saveSettings();
-    });
+    const saveBtn = document.getElementById('saveBtn');
+    if (saveBtn) {
+      saveBtn.addEventListener('click', () => {
+        this.saveSettings();
+      });
+    }
 
     // Export/Import buttons
-    document.getElementById('exportBtn').addEventListener('click', () => {
-      this.exportSettings();
-    });
+    const exportBtn = document.getElementById('exportBtn');
+    if (exportBtn) {
+      exportBtn.addEventListener('click', () => {
+        this.exportSettings();
+      });
+    }
 
-    document.getElementById('importBtn').addEventListener('click', () => {
-      this.showImportModal();
-    });
+    const importBtn = document.getElementById('importBtn');
+    if (importBtn) {
+      importBtn.addEventListener('click', () => {
+        this.showImportModal();
+      });
+    }
 
-    // Category management
-    document.getElementById('addAllowedBtn').addEventListener('click', () => {
-      this.addCategory('allow');
-    });
+    // Category management - Use event delegation
+    const addAllowedBtn = document.getElementById('addAllowedBtn');
+    if (addAllowedBtn) {
+      addAllowedBtn.addEventListener('click', () => {
+        this.addCategory('allow');
+      });
+    }
 
-    document.getElementById('addBlockedBtn').addEventListener('click', () => {
-      this.addCategory('block');
-    });
+    const addBlockedBtn = document.getElementById('addBlockedBtn');
+    if (addBlockedBtn) {
+      addBlockedBtn.addEventListener('click', () => {
+        this.addCategory('block');
+      });
+    }
 
-    document.getElementById('resetCategoriesBtn').addEventListener('click', () => {
-      this.resetCategories();
-    });
+    const resetCategoriesBtn = document.getElementById('resetCategoriesBtn');
+    if (resetCategoriesBtn) {
+      resetCategoriesBtn.addEventListener('click', () => {
+        this.resetCategories();
+      });
+    }
 
     // Enter key for category inputs
-    document.getElementById('newAllowedCategory').addEventListener('keypress', (e) => {
-      if (e.key === 'Enter') this.addCategory('allow');
-    });
+    const newAllowedCategory = document.getElementById('newAllowedCategory');
+    if (newAllowedCategory) {
+      newAllowedCategory.addEventListener('keypress', (e) => {
+        if (e.key === 'Enter') this.addCategory('allow');
+      });
+    }
 
-    document.getElementById('newBlockedCategory').addEventListener('keypress', (e) => {
-      if (e.key === 'Enter') this.addCategory('block');
+    const newBlockedCategory = document.getElementById('newBlockedCategory');
+    if (newBlockedCategory) {
+      newBlockedCategory.addEventListener('keypress', (e) => {
+        if (e.key === 'Enter') this.addCategory('block');
+      });
+    }
+
+    // Category card selection
+    document.addEventListener('click', (e) => {
+      if (e.target.matches('.category-card')) {
+        this.toggleCategoryCard(e.target);
+      } else if (e.target.matches('.category-card input[type="checkbox"]')) {
+        this.toggleCategoryCard(e.target.closest('.category-card'));
+      }
     });
 
     // Filtering options
@@ -161,85 +243,274 @@ class OptionsManager {
     });
 
     // Domain management
-    document.getElementById('addBlockedDomainBtn').addEventListener('click', () => {
-      this.addDomain('block');
-    });
+    const addBlockedDomainBtn = document.getElementById('addBlockedDomainBtn');
+    if (addBlockedDomainBtn) {
+      addBlockedDomainBtn.addEventListener('click', () => {
+        this.addDomain('block');
+      });
+    }
 
-    document.getElementById('addAllowedDomainBtn').addEventListener('click', () => {
-      this.addDomain('allow');
-    });
+    const addAllowedDomainBtn = document.getElementById('addAllowedDomainBtn');
+    if (addAllowedDomainBtn) {
+      addAllowedDomainBtn.addEventListener('click', () => {
+        this.addDomain('allow');
+      });
+    }
 
-    document.getElementById('newBlockedDomain').addEventListener('keypress', (e) => {
-      if (e.key === 'Enter') this.addDomain('block');
-    });
+    const newBlockedDomain = document.getElementById('newBlockedDomain');
+    if (newBlockedDomain) {
+      newBlockedDomain.addEventListener('keypress', (e) => {
+        if (e.key === 'Enter') this.addDomain('block');
+      });
+    }
 
-    document.getElementById('newAllowedDomain').addEventListener('keypress', (e) => {
-      if (e.key === 'Enter') this.addDomain('allow');
-    });
+    const newAllowedDomain = document.getElementById('newAllowedDomain');
+    if (newAllowedDomain) {
+      newAllowedDomain.addEventListener('keypress', (e) => {
+        if (e.key === 'Enter') this.addDomain('allow');
+      });
+    }
 
     // Debug options
-    document.getElementById('debugMode').addEventListener('change', (e) => {
-      this.settings.debugMode = e.target.checked;
-    });
+    const debugMode = document.getElementById('debugMode');
+    if (debugMode) {
+      debugMode.addEventListener('change', (e) => {
+        this.settings.debugMode = e.target.checked;
+      });
+    }
 
-    document.getElementById('exportSettingsBtn').addEventListener('click', () => {
-      this.exportSettingsJSON();
-    });
+    const exportSettingsBtn = document.getElementById('exportSettingsBtn');
+    if (exportSettingsBtn) {
+      exportSettingsBtn.addEventListener('click', () => {
+        this.exportSettingsJSON();
+      });
+    }
 
-    document.getElementById('importSettingsBtn').addEventListener('click', () => {
-      this.showImportSettingsModal();
-    });
+    const importSettingsBtn = document.getElementById('importSettingsBtn');
+    if (importSettingsBtn) {
+      importSettingsBtn.addEventListener('click', () => {
+        this.showImportSettingsModal();
+      });
+    }
 
-    document.getElementById('clearAllDataBtn').addEventListener('click', () => {
-      this.clearAllData();
-    });
+    const clearAllDataBtn = document.getElementById('clearAllDataBtn');
+    if (clearAllDataBtn) {
+      clearAllDataBtn.addEventListener('click', () => {
+        this.clearAllData();
+      });
+    }
 
     // Modal controls
-    document.getElementById('modalClose').addEventListener('click', () => {
-      this.hideModal();
-    });
+    const modalClose = document.getElementById('modalClose');
+    if (modalClose) {
+      modalClose.addEventListener('click', () => {
+        this.hideModal();
+      });
+    }
 
-    document.getElementById('modalCancel').addEventListener('click', () => {
-      this.hideModal();
-    });
+    const modalCancel = document.getElementById('modalCancel');
+    if (modalCancel) {
+      modalCancel.addEventListener('click', () => {
+        this.hideModal();
+      });
+    }
 
-    document.getElementById('modalConfirm').addEventListener('click', () => {
-      this.confirmModal();
-    });
+    const modalConfirm = document.getElementById('modalConfirm');
+    if (modalConfirm) {
+      modalConfirm.addEventListener('click', () => {
+        this.confirmModal();
+      });
+    }
 
     // Close modal on outside click
-    document.getElementById('importExportModal').addEventListener('click', (e) => {
-      if (e.target.id === 'importExportModal') {
-        this.hideModal();
-      }
-    });
+    const importExportModal = document.getElementById('importExportModal');
+    if (importExportModal) {
+      importExportModal.addEventListener('click', (e) => {
+        if (e.target.id === 'importExportModal') {
+          this.hideModal();
+        }
+      });
+    }
 
     // Footer links
-    document.getElementById('docsLink').addEventListener('click', (e) => {
-      e.preventDefault();
-      chrome.tabs.create({ url: chrome.runtime.getURL('docs/ARCHITECTURE.md') });
-    });
+    const docsLink = document.getElementById('docsLink');
+    if (docsLink) {
+      docsLink.addEventListener('click', (e) => {
+        e.preventDefault();
+        chrome.tabs.create({ url: chrome.runtime.getURL('docs/ARCHITECTURE.md') });
+      });
+    }
 
-    document.getElementById('supportLink').addEventListener('click', (e) => {
-      e.preventDefault();
-      chrome.tabs.create({ url: 'https://github.com/focusguard/support' });
-    });
+    const supportLink = document.getElementById('supportLink');
+    if (supportLink) {
+      supportLink.addEventListener('click', (e) => {
+        e.preventDefault();
+        chrome.tabs.create({ url: 'https://github.com/focusguard/support' });
+      });
+    }
 
-    document.getElementById('githubLink').addEventListener('click', (e) => {
-      e.preventDefault();
-      chrome.tabs.create({ url: 'https://github.com/focusguard/focusguard' });
-    });
+    const githubLink = document.getElementById('githubLink');
+    if (githubLink) {
+      githubLink.addEventListener('click', (e) => {
+        e.preventDefault();
+        chrome.tabs.create({ url: 'https://github.com/focusguard/focusguard' });
+      });
+    }
   }
 
   /**
    * Update UI with current data
    */
   updateUI() {
+    this.renderCategoryCards();
     this.updateCategoryLists();
     this.updateFilteringOptions();
     this.updateAnalytics();
     this.updateDomainLists();
     this.updateDebugOptions();
+  }
+
+  /**
+   * Render category cards (predefined options)
+   */
+  renderCategoryCards() {
+    const allowedCategories = this.settings.allowedCategories || [];
+    const blockedCategories = this.settings.blockedCategories || [];
+
+    // Render allowed category cards
+    const allowedGridContainer = document.getElementById('allowedCategoriesGrid');
+    if (allowedGridContainer) {
+      allowedGridContainer.innerHTML = '';
+      PREDEFINED_CATEGORIES.allow.forEach(category => {
+        const isSelected = allowedCategories.includes(category);
+        const isOther = category === 'Other';
+        
+        const card = document.createElement('div');
+        card.className = `category-card ${isSelected ? 'selected' : ''}`;
+        card.dataset.category = category;
+        card.dataset.type = 'allow';
+        
+        if (isOther) {
+          card.innerHTML = `
+            <input type="checkbox" ${isSelected ? 'checked' : ''}>
+            <label>
+              <span class="category-label">${category}</span>
+              <span class="category-add-icon">+</span>
+            </label>
+          `;
+        } else {
+          card.innerHTML = `
+            <input type="checkbox" ${isSelected ? 'checked' : ''}>
+            <label>
+              <span class="category-label">${category}</span>
+              <span class="checkmark" style="display: ${isSelected ? 'inline' : 'none'}">✓</span>
+            </label>
+          `;
+        }
+        
+        allowedGridContainer.appendChild(card);
+      });
+    }
+
+    // Render blocked category cards
+    const blockedGridContainer = document.getElementById('blockedCategoriesGrid');
+    if (blockedGridContainer) {
+      blockedGridContainer.innerHTML = '';
+      PREDEFINED_CATEGORIES.block.forEach(category => {
+        const isSelected = blockedCategories.includes(category);
+        const isOther = category === 'Other';
+        
+        const card = document.createElement('div');
+        card.className = `category-card ${isSelected ? 'selected' : ''}`;
+        card.dataset.category = category;
+        card.dataset.type = 'block';
+        
+        if (isOther) {
+          card.innerHTML = `
+            <input type="checkbox" ${isSelected ? 'checked' : ''}>
+            <label>
+              <span class="category-label">${category}</span>
+              <span class="category-add-icon">+</span>
+            </label>
+          `;
+        } else {
+          card.innerHTML = `
+            <input type="checkbox" ${isSelected ? 'checked' : ''}>
+            <label>
+              <span class="category-label">${category}</span>
+              <span class="checkmark" style="display: ${isSelected ? 'inline' : 'none'}">✓</span>
+            </label>
+          `;
+        }
+        
+        blockedGridContainer.appendChild(card);
+      });
+    }
+
+    // Show/hide custom input for "Other"
+    this.updateOtherInputVisibility();
+  }
+
+  /**
+   * Toggle category card selection
+   */
+  toggleCategoryCard(card) {
+    const checkbox = card.querySelector('input[type="checkbox"]');
+    const category = card.dataset.category;
+    const type = card.dataset.type;
+    
+    if (category === 'Other') {
+      checkbox.checked = !checkbox.checked;
+      card.classList.toggle('selected');
+      this.updateOtherInputVisibility();
+    } else {
+      const listKey = type === 'allow' ? 'allowedCategories' : 'blockedCategories';
+      const categories = this.settings[listKey] || [];
+      
+      // Filter out 'Other' if it exists
+      const filteredCategories = categories.filter(cat => cat !== 'Other');
+      
+      if (filteredCategories.includes(category)) {
+        const index = filteredCategories.indexOf(category);
+        filteredCategories.splice(index, 1);
+        card.classList.remove('selected');
+        checkbox.checked = false;
+      } else {
+        filteredCategories.push(category);
+        card.classList.add('selected');
+        checkbox.checked = true;
+      }
+      
+      this.settings[listKey] = filteredCategories;
+      const checkmark = card.querySelector('.checkmark');
+      if (checkmark) {
+        checkmark.style.display = checkbox.checked ? 'inline' : 'none';
+      }
+    }
+  }
+
+  /**
+   * Update visibility of custom input for "Other"
+   */
+  updateOtherInputVisibility() {
+    const allowedCategories = this.settings.allowedCategories || [];
+    const blockedCategories = this.settings.blockedCategories || [];
+    
+    const allowedOtherCard = document.querySelector('[data-category="Other"][data-type="allow"]');
+    const blockedOtherCard = document.querySelector('[data-category="Other"][data-type="block"]');
+    
+    const allowedOtherInput = document.getElementById('allowOtherCategoryInput');
+    const blockedOtherInput = document.getElementById('blockOtherCategoryInput');
+    
+    if (allowedOtherInput && allowedOtherCard) {
+      const allowedOtherCheckbox = allowedOtherCard.querySelector('input[type="checkbox"]');
+      allowedOtherInput.style.display = allowedOtherCheckbox?.checked ? 'flex' : 'none';
+    }
+    
+    if (blockedOtherInput && blockedOtherCard) {
+      const blockedOtherCheckbox = blockedOtherCard.querySelector('input[type="checkbox"]');
+      blockedOtherInput.style.display = blockedOtherCheckbox?.checked ? 'flex' : 'none';
+    }
   }
 
   /**
@@ -250,12 +521,16 @@ class OptionsManager {
     const blockedCategories = this.settings.blockedCategories || [];
 
     // Update allowed categories
-    const allowedContainer = document.getElementById('allowedCategories');
-    allowedContainer.innerHTML = this.renderCategoryItems(allowedCategories, 'allow');
+    const allowedContainer = document.getElementById('allowedCategoriesList');
+    if (allowedContainer) {
+      allowedContainer.innerHTML = this.renderCategoryItems(allowedCategories, 'allow');
+    }
 
     // Update blocked categories
-    const blockedContainer = document.getElementById('blockedCategories');
-    blockedContainer.innerHTML = this.renderCategoryItems(blockedCategories, 'block');
+    const blockedContainer = document.getElementById('blockedCategoriesList');
+    if (blockedContainer) {
+      blockedContainer.innerHTML = this.renderCategoryItems(blockedCategories, 'block');
+    }
 
     // Setup remove handlers
     this.setupCategoryRemoveHandlers();
@@ -296,18 +571,26 @@ class OptionsManager {
   updateFilteringOptions() {
     // Filter mode
     const filterMode = this.settings.filterMode || 'blur';
-    document.querySelector(`input[name="filterMode"][value="${filterMode}"]`).checked = true;
+    const filterModeInput = document.querySelector(`input[name="filterMode"][value="${filterMode}"]`);
+    if (filterModeInput) {
+      filterModeInput.checked = true;
+    }
 
     // Mode
     const mode = this.settings.mode || 'balanced';
-    document.querySelector(`input[name="mode"][value="${mode}"]`).checked = true;
+    const modeInput = document.querySelector(`input[name="mode"][value="${mode}"]`);
+    if (modeInput) {
+      modeInput.checked = true;
+    }
 
     // Sensitivity
     const sensitivity = this.settings.sensitivity || 'medium';
     const sensitivityValues = { 'low': 0, 'medium': 1, 'high': 2 };
     const slider = document.getElementById('sensitivitySlider');
-    slider.value = sensitivityValues[sensitivity];
-    this.updateSensitivityDisplay(slider.value);
+    if (slider) {
+      slider.value = sensitivityValues[sensitivity];
+      this.updateSensitivityDisplay(slider.value);
+    }
   }
 
   /**
@@ -319,7 +602,10 @@ class OptionsManager {
       'Medium confidence (70%) - Balanced filtering',
       'High confidence (90%) - Conservative filtering'
     ];
-    document.getElementById('sensitivityDescription').textContent = descriptions[value];
+    const sensitivityDescription = document.getElementById('sensitivityDescription');
+    if (sensitivityDescription) {
+      sensitivityDescription.textContent = descriptions[value];
+    }
   }
 
   /**
@@ -327,10 +613,25 @@ class OptionsManager {
    */
   updateAnalytics() {
     // Update stats
-    document.getElementById('todayTextBlocks').textContent = this.stats.blockedTexts?.count || 0;
-    document.getElementById('todayImageBlocks').textContent = this.stats.blockedImages?.count || 0;
-    document.getElementById('todayVideoBlocks').textContent = this.stats.blockedVideos?.count || 0;
-    document.getElementById('todayTotalBlocks').textContent = this.stats.totalBlocksToday || 0;
+    const todayTextBlocks = document.getElementById('todayTextBlocks');
+    if (todayTextBlocks) {
+      todayTextBlocks.textContent = this.stats.blockedTexts?.count || 0;
+    }
+    
+    const todayImageBlocks = document.getElementById('todayImageBlocks');
+    if (todayImageBlocks) {
+      todayImageBlocks.textContent = this.stats.blockedImages?.count || 0;
+    }
+    
+    const todayVideoBlocks = document.getElementById('todayVideoBlocks');
+    if (todayVideoBlocks) {
+      todayVideoBlocks.textContent = this.stats.blockedVideos?.count || 0;
+    }
+    
+    const todayTotalBlocks = document.getElementById('todayTotalBlocks');
+    if (todayTotalBlocks) {
+      todayTotalBlocks.textContent = this.stats.totalBlocksToday || 0;
+    }
 
     // Update top domains
     this.updateTopDomains();
@@ -346,6 +647,9 @@ class OptionsManager {
       .slice(0, 10);
 
     const container = document.getElementById('topBlockedDomains');
+    if (!container) {
+      return;
+    }
     
     if (sortedDomains.length === 0) {
       container.innerHTML = '<div class="empty-state">No blocked domains yet</div>';
@@ -412,14 +716,25 @@ class OptionsManager {
    * Update debug options
    */
   updateDebugOptions() {
-    document.getElementById('debugMode').checked = this.settings.debugMode || false;
+    const debugMode = document.getElementById('debugMode');
+    if (debugMode) {
+      debugMode.checked = this.settings.debugMode || false;
+    }
   }
 
   /**
    * Add category to list
    */
   addCategory(type) {
-    const input = document.getElementById(`new${type.charAt(0).toUpperCase() + type.slice(1)}Category`);
+    const inputId = type === 'allow' ? 'newAllowedCategory' : 'newBlockedCategory';
+    const input = document.getElementById(inputId);
+    
+    if (!input) {
+      console.error(`FocusGuard: Input element not found: ${inputId}`);
+      this.showToast('Error: Input element not found', 'error');
+      return;
+    }
+    
     const category = input.value.trim();
     
     if (!category) {
@@ -431,7 +746,7 @@ class OptionsManager {
     const categories = this.settings[listKey] || [];
     
     if (categories.includes(category)) {
-      this.showToast('Category already exists', 'warning');
+      this.showToast(`"${category}" already exists`, 'warning');
       return;
     }
 
@@ -439,6 +754,43 @@ class OptionsManager {
     this.settings[listKey] = categories;
     
     input.value = '';
+    this.renderCategoryCards();
+    this.updateCategoryLists();
+    this.showToast(`Category added to ${type} list`, 'success');
+  }
+
+  /**
+   * Add custom category from "Other" input
+   */
+  addCustomCategory(type) {
+    const inputId = type === 'allow' ? 'allowOtherInput' : 'blockOtherInput';
+    const input = document.getElementById(inputId);
+    
+    if (!input) {
+      console.error(`FocusGuard: Custom input element not found: ${inputId}`);
+      return;
+    }
+    
+    const category = input.value.trim();
+    
+    if (!category) {
+      this.showToast('Please enter a category name', 'warning');
+      return;
+    }
+
+    const listKey = type === 'allow' ? 'allowedCategories' : 'blockedCategories';
+    const categories = this.settings[listKey] || [];
+    
+    if (categories.includes(category)) {
+      this.showToast(`"${category}" already exists`, 'warning');
+      return;
+    }
+
+    categories.push(category);
+    this.settings[listKey] = categories;
+    
+    input.value = '';
+    this.renderCategoryCards();
     this.updateCategoryLists();
     this.showToast(`Category added to ${type} list`, 'success');
   }
@@ -464,8 +816,9 @@ class OptionsManager {
    */
   resetCategories() {
     if (confirm('Are you sure you want to reset all categories to defaults?')) {
-      this.settings.allowedCategories = [];
-      this.settings.blockedCategories = [];
+      this.settings.allowedCategories = [...DEFAULT_ALLOWED_CATEGORIES];
+      this.settings.blockedCategories = [...DEFAULT_BLOCKED_CATEGORIES];
+      this.renderCategoryCards();
       this.updateCategoryLists();
       this.showToast('Categories reset to defaults', 'success');
     }
@@ -475,7 +828,15 @@ class OptionsManager {
    * Add domain to list
    */
   addDomain(type) {
-    const input = document.getElementById(`new${type.charAt(0).toUpperCase() + type.slice(1)}Domain`);
+    const inputId = `new${type.charAt(0).toUpperCase() + type.slice(1)}Domain`;
+    const input = document.getElementById(inputId);
+    
+    if (!input) {
+      console.error(`FocusGuard: Input element not found: ${inputId}`);
+      this.showToast('Error: Input element not found', 'error');
+      return;
+    }
+    
     const domain = input.value.trim();
     
     if (!domain) {
@@ -487,7 +848,7 @@ class OptionsManager {
     const domains = this.settings[listKey] || [];
     
     if (domains.includes(domain)) {
-      this.showToast('Domain already exists', 'warning');
+      this.showToast(`"${domain}" already exists`, 'warning');
       return;
     }
 
@@ -520,6 +881,11 @@ class OptionsManager {
    */
   togglePreview() {
     const previewContent = document.getElementById('previewContent');
+    if (!previewContent) {
+      console.error('FocusGuard: Preview content element not found');
+      return;
+    }
+    
     const isFiltered = previewContent.hasAttribute('data-preview-filtered');
     
     if (isFiltered) {
@@ -752,6 +1118,11 @@ class OptionsManager {
     const toast = document.getElementById('toast');
     const toastMessage = document.getElementById('toastMessage');
     
+    if (!toast || !toastMessage) {
+      console.warn('FocusGuard: Toast elements not found. Message:', message);
+      return;
+    }
+    
     toastMessage.textContent = message;
     toast.className = `toast ${type}`;
     
@@ -768,6 +1139,7 @@ class OptionsManager {
 }
 
 // Initialize options page when DOM is ready
+let optionsManager;
 document.addEventListener('DOMContentLoaded', () => {
-  new OptionsManager();
+  optionsManager = new OptionsManager();
 });
