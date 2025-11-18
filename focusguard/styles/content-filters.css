@@ -1,0 +1,319 @@
+/**
+ * Content Filters CSS for FocusGuard
+ * Styles for blur, block, and placeholder effects
+ */
+
+/* Base blur effect */
+.focusguard-blur {
+  filter: blur(10px) grayscale(100%) !important;
+  transition: filter 0.3s ease !important;
+  position: relative !important;
+}
+
+.focusguard-blur:hover {
+  filter: none !important;
+  cursor: pointer !important;
+}
+
+/* Progressive blur levels */
+.focusguard-blur-low {
+  filter: blur(5px) grayscale(50%) !important;
+}
+
+.focusguard-blur-medium {
+  filter: blur(10px) grayscale(75%) !important;
+}
+
+.focusguard-blur-high {
+  filter: blur(15px) grayscale(100%) !important;
+}
+
+/* Blocked content placeholder */
+.focusguard-placeholder {
+  display: flex !important;
+  align-items: center !important;
+  justify-content: center !important;
+  min-height: 100px !important;
+  background: linear-gradient(135deg, #f5f5f5 0%, #e0e0e0 100%) !important;
+  border: 2px dashed #ccc !important;
+  border-radius: 8px !important;
+  margin: 8px 0 !important;
+  padding: 16px !important;
+  font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif !important;
+  color: #666 !important;
+  text-align: center !important;
+  position: relative !important;
+  box-sizing: border-box !important;
+}
+
+.focusguard-placeholder-content {
+  display: flex !important;
+  flex-direction: column !important;
+  align-items: center !important;
+  gap: 8px !important;
+  max-width: 300px !important;
+}
+
+.focusguard-placeholder-icon {
+  font-size: 24px !important;
+  margin-bottom: 4px !important;
+}
+
+.focusguard-placeholder-text {
+  font-size: 14px !important;
+  font-weight: 500 !important;
+  color: #333 !important;
+  margin: 0 !important;
+}
+
+.focusguard-placeholder-category {
+  font-size: 12px !important;
+  color: #666 !important;
+  font-style: italic !important;
+  margin: 0 !important;
+}
+
+.focusguard-reveal-btn {
+  background: #4CAF50 !important;
+  color: white !important;
+  border: none !important;
+  padding: 8px 16px !important;
+  border-radius: 4px !important;
+  font-size: 12px !important;
+  font-weight: 500 !important;
+  cursor: pointer !important;
+  transition: background-color 0.2s ease !important;
+  margin-top: 8px !important;
+}
+
+.focusguard-reveal-btn:hover {
+  background: #45a049 !important;
+}
+
+.focusguard-reveal-btn:active {
+  background: #3d8b40 !important;
+  transform: translateY(1px) !important;
+}
+
+/* Image-specific placeholders */
+.focusguard-placeholder-image {
+  aspect-ratio: 16/9 !important;
+  max-width: 100% !important;
+  height: auto !important;
+}
+
+/* Video-specific placeholders */
+.focusguard-placeholder-video {
+  aspect-ratio: 16/9 !important;
+  max-width: 100% !important;
+  height: auto !important;
+  background: linear-gradient(135deg, #2c3e50 0%, #34495e 100%) !important;
+}
+
+.focusguard-placeholder-video .focusguard-placeholder-icon {
+  font-size: 48px !important;
+}
+
+/* Text-specific placeholders */
+.focusguard-placeholder-text {
+  min-height: 60px !important;
+  background: linear-gradient(135deg, #fff9c4 0%, #ffeb3b 100%) !important;
+  border-color: #fbc02d !important;
+}
+
+/* Link-specific placeholders */
+.focusguard-placeholder-link {
+  display: inline-block !important;
+  min-height: auto !important;
+  padding: 4px 8px !important;
+  margin: 0 4px !important;
+  background: linear-gradient(135deg, #ffebee 0%, #ffcdd2 100%) !important;
+  border-color: #e57373 !important;
+  border-radius: 4px !important;
+  text-decoration: none !important;
+}
+
+.focusguard-placeholder-link .focusguard-placeholder-content {
+  flex-direction: row !important;
+  gap: 4px !important;
+}
+
+.focusguard-placeholder-link .focusguard-placeholder-icon {
+  font-size: 14px !important;
+  margin: 0 !important;
+}
+
+.focusguard-placeholder-link .focusguard-placeholder-text {
+  font-size: 12px !important;
+  margin: 0 !important;
+}
+
+.focusguard-placeholder-link .focusguard-placeholder-category {
+  display: none !important;
+}
+
+.focusguard-placeholder-link .focusguard-reveal-btn {
+  margin: 0 !important;
+  padding: 2px 6px !important;
+  font-size: 10px !important;
+}
+
+/* Animation for appearing filters */
+@keyframes focusguard-filter-in {
+  from {
+    opacity: 0;
+    transform: scale(0.95);
+  }
+  to {
+    opacity: 1;
+    transform: scale(1);
+  }
+}
+
+.focusguard-filtered {
+  animation: focusguard-filter-in 0.3s ease-out !important;
+}
+
+/* Category-specific colors */
+.focusguard-placeholder[data-category="Adult"] {
+  background: linear-gradient(135deg, #ffebee 0%, #ffcdd2 100%) !important;
+  border-color: #e57373 !important;
+}
+
+.focusguard-placeholder[data-category="Gaming"] {
+  background: linear-gradient(135deg, #e8f5e8 0%, #c8e6c9 100%) !important;
+  border-color: #81c784 !important;
+}
+
+.focusguard-placeholder[data-category="Entertainment"] {
+  background: linear-gradient(135deg, #fff3e0 0%, #ffe0b2 100%) !important;
+  border-color: #ffb74d !important;
+}
+
+.focusguard-placeholder[data-category="Politics"] {
+  background: linear-gradient(135deg, #f3e5f5 0%, #e1bee7 100%) !important;
+  border-color: #ba68c8 !important;
+}
+
+.focusguard-placeholder[data-category="News"] {
+  background: linear-gradient(135deg, #e3f2fd 0%, #bbdefb 100%) !important;
+  border-color: #64b5f6 !important;
+}
+
+/* Dark mode support */
+@media (prefers-color-scheme: dark) {
+  .focusguard-placeholder {
+    background: linear-gradient(135deg, #2d2d2d 0%, #1a1a1a 100%) !important;
+    border-color: #555 !important;
+    color: #ccc !important;
+  }
+  
+  .focusguard-placeholder-text {
+    color: #fff !important;
+  }
+  
+  .focusguard-placeholder-category {
+    color: #aaa !important;
+  }
+  
+  .focusguard-reveal-btn {
+    background: #5a5a5a !important;
+    color: #fff !important;
+  }
+  
+  .focusguard-reveal-btn:hover {
+    background: #6a6a6a !important;
+  }
+}
+
+/* Small screen adjustments */
+@media (max-width: 768px) {
+  .focusguard-placeholder {
+    min-height: 80px !important;
+    padding: 12px !important;
+    margin: 4px 0 !important;
+  }
+  
+  .focusguard-placeholder-content {
+    max-width: 250px !important;
+  }
+  
+  .focusguard-placeholder-icon {
+    font-size: 20px !important;
+  }
+  
+  .focusguard-placeholder-text {
+    font-size: 13px !important;
+  }
+  
+  .focusguard-reveal-btn {
+    padding: 6px 12px !important;
+    font-size: 11px !important;
+  }
+}
+
+/* High contrast mode support */
+@media (prefers-contrast: high) {
+  .focusguard-placeholder {
+    border-width: 3px !important;
+    border-color: #000 !important;
+    background: #fff !important;
+    color: #000 !important;
+  }
+  
+  .focusguard-reveal-btn {
+    border: 2px solid #000 !important;
+    background: #000 !important;
+    color: #fff !important;
+  }
+  
+  .focusguard-reveal-btn:hover {
+    background: #333 !important;
+  }
+}
+
+/* Reduced motion support */
+@media (prefers-reduced-motion: reduce) {
+  .focusguard-blur {
+    transition: none !important;
+  }
+  
+  .focusguard-reveal-btn {
+    transition: none !important;
+  }
+  
+  .focusguard-filtered {
+    animation: none !important;
+  }
+}
+
+/* Print styles - hide placeholders when printing */
+@media print {
+  .focusguard-placeholder {
+    display: none !important;
+  }
+  
+  .focusguard-blur {
+    filter: none !important;
+  }
+}
+
+/* Focus styles for accessibility */
+.focusguard-reveal-btn:focus,
+.focusguard-blur:focus {
+  outline: 2px solid #4CAF50 !important;
+  outline-offset: 2px !important;
+}
+
+/* Screen reader only text */
+.focusguard-sr-only {
+  position: absolute !important;
+  width: 1px !important;
+  height: 1px !important;
+  padding: 0 !important;
+  margin: -1px !important;
+  overflow: hidden !important;
+  clip: rect(0, 0, 0, 0) !important;
+  white-space: nowrap !important;
+  border: 0 !important;
+}
