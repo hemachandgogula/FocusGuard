@@ -37,10 +37,28 @@
                         <!-- Allowed Categories -->
                         <div class="category-group">
                             <h3 class="group-title">Allowed Categories</h3>
-                            <p class="group-description">Content from these categories will always be shown</p>
-                            <div class="category-list" id="allowedCategories">
+                            <p class="group-description">Select categories you want to see</p>
+                            
+                            <!-- Category Cards Grid -->
+                            <div class="category-cards-grid" id="allowedCategoriesGrid">
                                 <!-- Categories will be populated by JavaScript -->
                             </div>
+
+                            <!-- Custom "Other" Input -->
+                            <div class="category-input" id="allowOtherCategoryInput" style="display: none;">
+                                <input type="text" id="allowOtherInput" placeholder="Enter custom category...">
+                                <button class="btn btn-small" onclick="optionsManager.addCustomCategory('allow')">Add</button>
+                            </div>
+
+                            <!-- Current Categories List -->
+                            <div class="selected-categories">
+                                <label class="selected-label">Selected:</label>
+                                <div class="category-list" id="allowedCategoriesList">
+                                    <!-- Categories will be populated by JavaScript -->
+                                </div>
+                            </div>
+
+                            <!-- Manual Input Fallback -->
                             <div class="category-input">
                                 <input type="text" id="newAllowedCategory" placeholder="Add custom category...">
                                 <button class="btn btn-small" id="addAllowedBtn">Add</button>
@@ -50,10 +68,28 @@
                         <!-- Blocked Categories -->
                         <div class="category-group">
                             <h3 class="group-title">Blocked Categories</h3>
-                            <p class="group-description">Content from these categories will be filtered</p>
-                            <div class="category-list" id="blockedCategories">
+                            <p class="group-description">Select categories you want to filter</p>
+                            
+                            <!-- Category Cards Grid -->
+                            <div class="category-cards-grid" id="blockedCategoriesGrid">
                                 <!-- Categories will be populated by JavaScript -->
                             </div>
+
+                            <!-- Custom "Other" Input -->
+                            <div class="category-input" id="blockOtherCategoryInput" style="display: none;">
+                                <input type="text" id="blockOtherInput" placeholder="Enter custom category...">
+                                <button class="btn btn-small" onclick="optionsManager.addCustomCategory('block')">Add</button>
+                            </div>
+
+                            <!-- Current Categories List -->
+                            <div class="selected-categories">
+                                <label class="selected-label">Selected:</label>
+                                <div class="category-list" id="blockedCategoriesList">
+                                    <!-- Categories will be populated by JavaScript -->
+                                </div>
+                            </div>
+
+                            <!-- Manual Input Fallback -->
                             <div class="category-input">
                                 <input type="text" id="newBlockedCategory" placeholder="Add custom category...">
                                 <button class="btn btn-small" id="addBlockedBtn">Add</button>
