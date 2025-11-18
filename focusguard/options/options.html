@@ -1,0 +1,310 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>FocusGuard Settings</title>
+    <link rel="stylesheet" href="options.css">
+</head>
+<body>
+    <div class="options-container">
+        <!-- Header -->
+        <header class="options-header">
+            <div class="header-content">
+                <div class="logo">
+                    <img src="../icons/icon-48.png" alt="FocusGuard" class="logo-icon">
+                    <h1 class="logo-text">FocusGuard Settings</h1>
+                </div>
+                <div class="header-actions">
+                    <button class="btn btn-secondary" id="exportBtn">Export</button>
+                    <button class="btn btn-secondary" id="importBtn">Import</button>
+                    <button class="btn btn-primary" id="saveBtn">Save Changes</button>
+                </div>
+            </div>
+        </header>
+
+        <!-- Main Content -->
+        <main class="options-main">
+            <div class="options-grid">
+                <!-- Category Management -->
+                <section class="options-section">
+                    <h2 class="section-title">
+                        <span class="section-icon">🏷️</span>
+                        Category Management
+                    </h2>
+                    
+                    <div class="category-management">
+                        <!-- Allowed Categories -->
+                        <div class="category-group">
+                            <h3 class="group-title">Allowed Categories</h3>
+                            <p class="group-description">Content from these categories will always be shown</p>
+                            <div class="category-list" id="allowedCategories">
+                                <!-- Categories will be populated by JavaScript -->
+                            </div>
+                            <div class="category-input">
+                                <input type="text" id="newAllowedCategory" placeholder="Add custom category...">
+                                <button class="btn btn-small" id="addAllowedBtn">Add</button>
+                            </div>
+                        </div>
+
+                        <!-- Blocked Categories -->
+                        <div class="category-group">
+                            <h3 class="group-title">Blocked Categories</h3>
+                            <p class="group-description">Content from these categories will be filtered</p>
+                            <div class="category-list" id="blockedCategories">
+                                <!-- Categories will be populated by JavaScript -->
+                            </div>
+                            <div class="category-input">
+                                <input type="text" id="newBlockedCategory" placeholder="Add custom category...">
+                                <button class="btn btn-small" id="addBlockedBtn">Add</button>
+                            </div>
+                        </div>
+
+                        <!-- Reset Button -->
+                        <div class="category-actions">
+                            <button class="btn btn-secondary" id="resetCategoriesBtn">Reset to Defaults</button>
+                        </div>
+                    </div>
+                </section>
+
+                <!-- Filtering Behavior -->
+                <section class="options-section">
+                    <h2 class="section-title">
+                        <span class="section-icon">⚙️</span>
+                        Filtering Behavior
+                    </h2>
+                    
+                    <div class="filtering-options">
+                        <!-- Filtering Mode -->
+                        <div class="option-group">
+                            <h3 class="option-title">Filtering Mode</h3>
+                            <div class="radio-group">
+                                <label class="radio-option">
+                                    <input type="radio" name="filterMode" value="blur">
+                                    <span class="radio-label">
+                                        <span class="radio-icon">🌫️</span>
+                                        <span class="radio-text">Blur Mode</span>
+                                    </span>
+                                    <span class="radio-description">Content is blurred but accessible on hover</span>
+                                </label>
+                                <label class="radio-option">
+                                    <input type="radio" name="filterMode" value="block">
+                                    <span class="radio-label">
+                                        <span class="radio-icon">🚫</span>
+                                        <span class="radio-text">Block Mode</span>
+                                    </span>
+                                    <span class="radio-description">Content is completely removed</span>
+                                </label>
+                            </div>
+                        </div>
+
+                        <!-- Filtering Personality -->
+                        <div class="option-group">
+                            <h3 class="option-title">Filtering Personality</h3>
+                            <div class="radio-group">
+                                <label class="radio-option">
+                                    <input type="radio" name="mode" value="balanced">
+                                    <span class="radio-label">
+                                        <span class="radio-icon">⚖️</span>
+                                        <span class="radio-text">Balanced Mode</span>
+                                    </span>
+                                    <span class="radio-description">Block only items in block list, allow everything else</span>
+                                </label>
+                                <label class="radio-option">
+                                    <input type="radio" name="mode" value="strict">
+                                    <span class="radio-label">
+                                        <span class="radio-icon">🛡️</span>
+                                        <span class="radio-text">Strict Mode</span>
+                                    </span>
+                                    <span class="radio-description">Block everything not in allow list</span>
+                                </label>
+                            </div>
+                        </div>
+
+                        <!-- Sensitivity Level -->
+                        <div class="option-group">
+                            <h3 class="option-title">Sensitivity Level</h3>
+                            <div class="sensitivity-slider">
+                                <div class="slider-labels">
+                                    <span class="slider-label">Low</span>
+                                    <span class="slider-label">Medium</span>
+                                    <span class="slider-label">High</span>
+                                </div>
+                                <input type="range" id="sensitivitySlider" min="0" max="2" value="1" class="slider">
+                                <div class="slider-description">
+                                    <span id="sensitivityDescription">Medium confidence (70%)</span>
+                                </div>
+                            </div>
+                        </div>
+
+                        <!-- Preview -->
+                        <div class="option-group">
+                            <h3 class="option-title">Preview</h3>
+                            <div class="preview-container">
+                                <div class="preview-content" id="previewContent">
+                                    <p>This is a sample content that might be filtered based on your settings.</p>
+                                    <img src="data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='200' height='100'%3E%3Crect width='200' height='100' fill='%23e0e0e0'/%3E%3Ctext x='50%25' y='50%25' text-anchor='middle' dy='.3em' fill='%23666'%3ESample Image%3C/text%3E%3C/svg%3E" alt="Sample image">
+                                </div>
+                                <button class="btn btn-small" id="togglePreviewBtn">Toggle Preview</button>
+                            </div>
+                        </div>
+                    </div>
+                </section>
+
+                <!-- Analytics Dashboard -->
+                <section class="options-section">
+                    <h2 class="section-title">
+                        <span class="section-icon">📊</span>
+                        Analytics Dashboard
+                    </h2>
+                    
+                    <div class="analytics-dashboard">
+                        <!-- Today's Stats -->
+                        <div class="stats-grid">
+                            <div class="stat-card">
+                                <div class="stat-icon">📝</div>
+                                <div class="stat-content">
+                                    <div class="stat-number" id="todayTextBlocks">0</div>
+                                    <div class="stat-label">Text Blocks</div>
+                                </div>
+                            </div>
+                            <div class="stat-card">
+                                <div class="stat-icon">🖼️</div>
+                                <div class="stat-content">
+                                    <div class="stat-number" id="todayImageBlocks">0</div>
+                                    <div class="stat-label">Image Blocks</div>
+                                </div>
+                            </div>
+                            <div class="stat-card">
+                                <div class="stat-icon">🎥</div>
+                                <div class="stat-content">
+                                    <div class="stat-number" id="todayVideoBlocks">0</div>
+                                    <div class="stat-label">Video Blocks</div>
+                                </div>
+                            </div>
+                            <div class="stat-card">
+                                <div class="stat-icon">📊</div>
+                                <div class="stat-content">
+                                    <div class="stat-number" id="todayTotalBlocks">0</div>
+                                    <div class="stat-label">Total Blocks</div>
+                                </div>
+                            </div>
+                        </div>
+
+                        <!-- Top Blocked Domains -->
+                        <div class="top-domains">
+                            <h3 class="subsection-title">Top Blocked Domains</h3>
+                            <div class="domain-list" id="topBlockedDomains">
+                                <!-- Will be populated by JavaScript -->
+                            </div>
+                        </div>
+
+                        <!-- Analytics Actions -->
+                        <div class="analytics-actions">
+                            <button class="btn btn-secondary" id="resetStatsBtn">Reset Daily Stats</button>
+                            <button class="btn btn-secondary" id="exportAnalyticsBtn">Export Analytics</button>
+                        </div>
+                    </div>
+                </section>
+
+                <!-- Domain Lists -->
+                <section class="options-section">
+                    <h2 class="section-title">
+                        <span class="section-icon">🌐</span>
+                        Domain Management
+                    </h2>
+                    
+                    <div class="domain-management">
+                        <!-- Blocked Domains -->
+                        <div class="domain-group">
+                            <h3 class="group-title">Blocked Domains</h3>
+                            <div class="domain-list-container">
+                                <input type="text" id="newBlockedDomain" placeholder="Enter domain to block...">
+                                <button class="btn btn-small" id="addBlockedDomainBtn">Add</button>
+                            </div>
+                            <div class="domain-items" id="blockedDomainsList">
+                                <!-- Will be populated by JavaScript -->
+                            </div>
+                        </div>
+
+                        <!-- Allowed Domains -->
+                        <div class="domain-group">
+                            <h3 class="group-title">Allowed Domains</h3>
+                            <div class="domain-list-container">
+                                <input type="text" id="newAllowedDomain" placeholder="Enter domain to allow...">
+                                <button class="btn btn-small" id="addAllowedDomainBtn">Add</button>
+                            </div>
+                            <div class="domain-items" id="allowedDomainsList">
+                                <!-- Will be populated by JavaScript -->
+                            </div>
+                        </div>
+                    </div>
+                </section>
+
+                <!-- Developer/Debug -->
+                <section class="options-section">
+                    <h2 class="section-title">
+                        <span class="section-icon">🔧</span>
+                        Developer & Debug
+                    </h2>
+                    
+                    <div class="debug-options">
+                        <div class="option-group">
+                            <label class="checkbox-option">
+                                <input type="checkbox" id="debugMode">
+                                <span class="checkbox-label">
+                                    <span class="checkbox-icon">🐛</span>
+                                    <span class="checkbox-text">Debug Mode</span>
+                                </span>
+                                <span class="checkbox-description">Enable console logging for troubleshooting</span>
+                            </label>
+                        </div>
+
+                        <div class="debug-actions">
+                            <button class="btn btn-secondary" id="exportSettingsBtn">Export Settings as JSON</button>
+                            <button class="btn btn-secondary" id="importSettingsBtn">Import Settings from JSON</button>
+                            <button class="btn btn-danger" id="clearAllDataBtn">Clear All Data</button>
+                        </div>
+                    </div>
+                </section>
+            </div>
+        </main>
+
+        <!-- Footer -->
+        <footer class="options-footer">
+            <div class="footer-content">
+                <p class="version">FocusGuard v1.0.0</p>
+                <div class="footer-links">
+                    <a href="#" id="docsLink">Documentation</a>
+                    <a href="#" id="supportLink">Support</a>
+                    <a href="#" id="githubLink">GitHub</a>
+                </div>
+            </div>
+        </footer>
+    </div>
+
+    <!-- Import/Export Modal -->
+    <div class="modal" id="importExportModal">
+        <div class="modal-content">
+            <div class="modal-header">
+                <h3 class="modal-title" id="modalTitle">Import/Export</h3>
+                <button class="modal-close" id="modalClose">&times;</button>
+            </div>
+            <div class="modal-body">
+                <textarea id="importExportTextarea" placeholder="Paste JSON data here..." rows="10"></textarea>
+            </div>
+            <div class="modal-footer">
+                <button class="btn btn-secondary" id="modalCancel">Cancel</button>
+                <button class="btn btn-primary" id="modalConfirm">Confirm</button>
+            </div>
+        </div>
+    </div>
+
+    <!-- Toast Notification -->
+    <div class="toast" id="toast">
+        <span class="toast-message" id="toastMessage"></span>
+    </div>
+
+    <script src="options.js"></script>
+</body>
+</html>
