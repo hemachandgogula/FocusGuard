@@ -13,18 +13,16 @@
 - **On-Device Processing**: All ML models run locally for privacy
 
 ### 🎯 Smart Filtering
-- **Dual Modes**: 
+- **Filter Modes**: 
   - **Blur Mode**: Content blurred but accessible on hover
   - **Block Mode**: Content completely removed with placeholders
-- **Filtering Personalities**:
-  - **Balanced Mode**: Block only items in block list (default)
-  - **Strict Mode**: Block everything not in allow list
+- **Block-List-Only Model**: Simple and intuitive - everything is allowed by default, only block what you explicitly select
 - **Sensitivity Levels**: Low (50%), Medium (70%), High (90%) confidence thresholds
 
 ### 📋 Category Management
-- **12 Default Categories**: Education, Technology, Science, Health, Business, News, Sports, Entertainment, Gaming, Adult, Politics, Agriculture
-- **Custom Categories**: Add your own categories
-- **Allow/Block Lists**: Separate lists for content you want to see vs. filter
+- **11 Suggested Categories**: Adult Content, Entertainment, Cruelty, Gambling, Violence, Politics, Gaming, Social Media, Shopping, News, Sports
+- **Custom Categories**: Add your own categories to the block list
+- **Default Blocked**: Adult Content, Entertainment, Cruelty (easily customizable)
 - **Domain Management**: Allow or block specific domains
 
 ### 📊 Analytics & Insights
@@ -35,11 +33,11 @@
 - **Export Data**: Download your analytics as JSON
 
 ### 🎨 User Interface
-- **Modern Popup**: Quick access controls and status
-- **Comprehensive Options**: Full settings management
-- **Real-time Updates**: Instant feedback on all actions
-- **Responsive Design**: Works on all screen sizes
-- **Dark Mode Support**: Follows system preferences
+- **Modern Design**: Gradient header, smooth animations, card-based layout
+- **Comprehensive Options**: Full settings management with intuitive category grid
+- **Real-time Updates**: Instant feedback with toast notifications
+- **Responsive Design**: Mobile-first design that works on all screen sizes
+- **Color Scheme**: Professional blue/purple gradients with accessible contrast
 
 ### ⚡ Performance
 - **Optimized Scanning**: MutationObserver with debouncing
@@ -68,22 +66,23 @@
 ### 1. Initial Setup
 1. Click FocusGuard icon in Chrome toolbar
 2. Open Settings (⚙️ button)
-3. Configure your **Allowed Categories** (content you want to see)
-4. Configure your **Blocked Categories** (content to filter)
-5. Choose your filtering preference (Blur vs Block)
-6. Select mode (Balanced vs Strict)
+3. Select **Blocked Categories** (default: Adult Content, Entertainment, Cruelty)
+4. Add custom categories if needed
+5. Choose your filter mode (Blur vs Block)
+6. Adjust sensitivity if desired
 
 ### 2. Basic Usage
-- **Toggle Extension**: Use master switch in popup
-- **Quick Mode Switch**: Toggle between Strict/Balanced modes
+- **Toggle Extension**: Use master switch in popup or options
+- **Select Categories**: Click category cards to block/unblock
+- **Add Custom**: Type name and click "+ Add Custom"
 - **Block Domain**: Click "Block this domain" in popup
-- **View Statistics**: Check block counts and analytics
+- **View Statistics**: Check daily block counts and top categories
 
 ### 3. Advanced Configuration
-- **Sensitivity Adjustment**: Fine-tune confidence thresholds
-- **Custom Categories**: Add personalized content categories
-- **Domain Lists**: Manage allow/block lists
-- **Export Settings**: Backup your configuration
+- **Sensitivity Adjustment**: Fine-tune confidence thresholds (Low/Medium/High)
+- **Custom Categories**: Add any content type to your block list
+- **Domain Lists**: Manage allow/block lists for specific sites
+- **Reset to Defaults**: Quickly restore default blocked categories
 
 ## 🏗️ Architecture
 

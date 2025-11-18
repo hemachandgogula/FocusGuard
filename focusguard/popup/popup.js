@@ -96,14 +96,7 @@ class PopupManager {
       this.toggleExtension(e.target.checked);
     });
 
-    // Mode buttons
-    document.getElementById('strictMode').addEventListener('click', () => {
-      this.setMode('strict');
-    });
-
-    document.getElementById('balancedMode').addEventListener('click', () => {
-      this.setMode('balanced');
-    });
+    // Mode buttons removed - using block-list-only model
 
     // Filter mode
     document.querySelectorAll('input[name="filterMode"]').forEach(radio => {
@@ -158,15 +151,7 @@ class PopupManager {
       statusText.textContent = 'Inactive';
     }
 
-    // Update current mode
-    const currentMode = document.getElementById('currentMode');
-    const mode = this.settings.mode || 'balanced';
-    currentMode.textContent = mode.charAt(0).toUpperCase() + mode.slice(1);
-
-    // Update mode buttons
-    document.querySelectorAll('.mode-btn').forEach(btn => {
-      btn.classList.toggle('active', btn.dataset.mode === mode);
-    });
+    // Mode display removed - using block-list-only model
 
     // Update filter mode
     const filterMode = this.settings.filterMode || 'blur';
@@ -295,33 +280,7 @@ class PopupManager {
     }
   }
 
-  /**
-   * Set filtering mode
-   */
-  async setMode(mode) {
-    try {
-      const response = await chrome.runtime.sendMessage({
-        action: 'updateSettings',
-        settings: { mode: mode }
-      });
-
-      if (response.success) {
-        this.settings.mode = mode;
-        this.showToast(`Switched to ${mode} mode`, 'success');
-        
-        // Update UI
-        document.getElementById('currentMode').textContent = mode.charAt(0).toUpperCase() + mode.slice(1);
-        document.querySelectorAll('.mode-btn').forEach(btn => {
-          btn.classList.toggle('active', btn.dataset.mode === mode);
-        });
-      } else {
-        throw new Error(response.error);
-      }
-    } catch (error) {
-      console.error('FocusGuard: Error setting mode:', error);
-      this.showToast('Error updating mode', 'error');
-    }
-  }
+  // setMode method removed - using block-list-only model
 
   /**
    * Set filter mode
