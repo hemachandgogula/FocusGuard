@@ -1,13 +1,11 @@
 /**
  * Storage Manager for FocusGuard
- * Wrapper for chrome.storage.sync and chrome.storage.local
+ * Simplified block-list-only model
  */
 
 class StorageManager {
   static KEYS = {
-    ALLOWED_CATEGORIES: 'allowedCategories',
     BLOCKED_CATEGORIES: 'blockedCategories',
-    MODE: 'mode', // 'strict' or 'balanced'
     FILTER_MODE: 'filterMode', // 'blur' or 'block'
     SENSITIVITY: 'sensitivity', // 'low', 'medium', 'high'
     EXTENSION_ENABLED: 'extensionEnabled',
@@ -17,9 +15,7 @@ class StorageManager {
   };
 
   static DEFAULT_SETTINGS = {
-    [StorageManager.KEYS.ALLOWED_CATEGORIES]: [],
-    [StorageManager.KEYS.BLOCKED_CATEGORIES]: [],
-    [StorageManager.KEYS.MODE]: 'balanced',
+    [StorageManager.KEYS.BLOCKED_CATEGORIES]: ['Adult Content', 'Entertainment', 'Cruelty'],
     [StorageManager.KEYS.FILTER_MODE]: 'blur',
     [StorageManager.KEYS.SENSITIVITY]: 'medium',
     [StorageManager.KEYS.BLOCKED_DOMAINS]: [],
@@ -27,68 +23,45 @@ class StorageManager {
   };
 
   /**
-   * Get categories from storage
-   * @param {string} type - 'allow' or 'block'
-   * @returns {Promise<string[]>} List of categories
+   * Get blocked categories from storage
+   * @returns {Promise<string[]>} List of blocked categories
    */
-  static async getCategories(type) {
-    const key = type === 'allow' ? StorageManager.KEYS.ALLOWED_CATEGORIES : StorageManager.KEYS.BLOCKED_CATEGORIES;
-    const result = await chrome.storage.sync.get(key);
-    return result[key] || StorageManager.DEFAULT_SETTINGS[key];
+  static async getBlockedCategories() {
+    const result = await chrome.storage.sync.get(StorageManager.KEYS.BLOCKED_CATEGORIES);
+    return result[StorageManager.KEYS.BLOCKED_CATEGORIES] || StorageManager.DEFAULT_SETTINGS[StorageManager.KEYS.BLOCKED_CATEGORIES];
   }
 
   /**
-   * Set categories in storage
-   * @param {string} type - 'allow' or 'block'
-   * @param {string[]} categories - List of categories
+   * Set blocked categories in storage
+   * @param {string[]} categories - List of categories to block
    */
-  static async setCategories(type, categories) {
-    const key = type === 'allow' ? StorageManager.KEYS.ALLOWED_CATEGORIES : StorageManager.KEYS.BLOCKED_CATEGORIES;
-    await chrome.storage.sync.set({ [key]: categories });
+  static async setBlockedCategories(categories) {
+    await chrome.storage.sync.set({ [StorageManager.KEYS.BLOCKED_CATEGORIES]: categories });
   }
 
   /**
-   * Add category to list
-   * @param {string} type - 'allow' or 'block'
-   * @param {string} category - Category to add
+   * Add category to blocked list
+   * @param {string} category - Category to block
    */
-  static async addCategory(type, category) {
-    const categories = await StorageManager.getCategories(type);
+  static async addBlockedCategory(category) {
+    const categories = await StorageManager.getBlockedCategories();
     if (!categories.includes(category)) {
       categories.push(category);
-      await StorageManager.setCategories(type, categories);
+      await StorageManager.setBlockedCategories(categories);
     }
   }
 
   /**
-   * Remove category from list
-   * @param {string} type - 'allow' or 'block'
-   * @param {string} category - Category to remove
+   * Remove category from blocked list
+   * @param {string} category - Category to unblock
    */
-  static async removeCategory(type, category) {
-    const categories = await StorageManager.getCategories(type);
+  static async removeBlockedCategory(category) {
+    const categories = await StorageManager.getBlockedCategories();
     const index = categories.indexOf(category);
     if (index > -1) {
       categories.splice(index, 1);
-      await StorageManager.setCategories(type, categories);
+      await StorageManager.setBlockedCategories(categories);
     }
-  }
-
-  /**
-   * Get filtering mode ('strict' or 'balanced')
-   * @returns {Promise<string>} Filtering mode
-   */
-  static async getMode() {
-    const result = await chrome.storage.sync.get(StorageManager.KEYS.MODE);
-    return result[StorageManager.KEYS.MODE] || StorageManager.DEFAULT_SETTINGS.MODE;
-  }
-
-  /**
-   * Set filtering mode
-   * @param {string} mode - 'strict' or 'balanced'
-   */
-  static async setMode(mode) {
-    await chrome.storage.sync.set({ [StorageManager.KEYS.MODE]: mode });
   }
 
   /**
@@ -97,7 +70,7 @@ class StorageManager {
    */
   static async getFilterMode() {
     const result = await chrome.storage.sync.get(StorageManager.KEYS.FILTER_MODE);
-    return result[StorageManager.KEYS.FILTER_MODE] || StorageManager.DEFAULT_SETTINGS.FILTER_MODE;
+    return result[StorageManager.KEYS.FILTER_MODE] || StorageManager.DEFAULT_SETTINGS[StorageManager.KEYS.FILTER_MODE];
   }
 
   /**
@@ -114,7 +87,7 @@ class StorageManager {
    */
   static async getSensitivity() {
     const result = await chrome.storage.sync.get(StorageManager.KEYS.SENSITIVITY);
-    return result[StorageManager.KEYS.SENSITIVITY] || StorageManager.DEFAULT_SETTINGS.SENSITIVITY;
+    return result[StorageManager.KEYS.SENSITIVITY] || StorageManager.DEFAULT_SETTINGS[StorageManager.KEYS.SENSITIVITY];
   }
 
   /**
@@ -166,7 +139,7 @@ class StorageManager {
    */
   static async getBlockedDomains() {
     const result = await chrome.storage.sync.get(StorageManager.KEYS.BLOCKED_DOMAINS);
-    return result[StorageManager.KEYS.BLOCKED_DOMAINS] || StorageManager.DEFAULT_SETTINGS.BLOCKED_DOMAINS;
+    return result[StorageManager.KEYS.BLOCKED_DOMAINS] || StorageManager.DEFAULT_SETTINGS[StorageManager.KEYS.BLOCKED_DOMAINS];
   }
 
   /**
@@ -200,7 +173,7 @@ class StorageManager {
    */
   static async getAllowedDomains() {
     const result = await chrome.storage.sync.get(StorageManager.KEYS.ALLOWED_DOMAINS);
-    return result[StorageManager.KEYS.ALLOWED_DOMAINS] || StorageManager.DEFAULT_SETTINGS.ALLOWED_DOMAINS;
+    return result[StorageManager.KEYS.ALLOWED_DOMAINS] || StorageManager.DEFAULT_SETTINGS[StorageManager.KEYS.ALLOWED_DOMAINS];
   }
 
   /**

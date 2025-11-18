@@ -120,6 +120,10 @@ class BackgroundService {
           await this.handleLogBlockAction(message.data, sendResponse);
           break;
         
+        case 'resetStats':
+          await this.handleResetStats(sendResponse);
+          break;
+        
         default:
           sendResponse({ success: false, error: 'Unknown action' });
       }
@@ -245,6 +249,14 @@ class BackgroundService {
       data.domain, 
       data.timestamp
     );
+    sendResponse({ success: true });
+  }
+
+  /**
+   * Reset daily statistics
+   */
+  async handleResetStats(sendResponse) {
+    await AnalyticsManager.resetDailyStats();
     sendResponse({ success: true });
   }
 

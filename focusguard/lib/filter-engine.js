@@ -37,32 +37,24 @@ class FilterEngine {
 
   /**
    * Determine if content should be blocked based on settings and classification
+   * Simplified block-list-only logic: blocks only if category is in blockedCategories
    * @param {string} category - Content category
    * @param {number} confidence - Confidence score (0-1)
    * @param {Object} settings - User settings
    * @returns {boolean} True if should block
    */
   shouldBlock(category, confidence, settings) {
-    const mode = settings.mode || 'balanced';
     const sensitivity = settings.sensitivity || 'medium';
     const threshold = this.sensitivityThresholds[sensitivity];
-    const allowedCategories = settings.allowedCategories || [];
     const blockedCategories = settings.blockedCategories || [];
     
     // Check confidence threshold
     if (confidence < threshold) {
-      // If confidence is too low, don't block unless in strict mode
-      return mode === 'strict' && !allowedCategories.includes(category);
+      return false; // If confidence is too low, don't block
     }
     
-    // Apply filtering logic based on mode
-    if (mode === 'strict') {
-      // Strict mode: block everything not in allow list, or anything in block list
-      return !allowedCategories.includes(category) || blockedCategories.includes(category);
-    } else {
-      // Balanced mode: only block items in block list
-      return blockedCategories.includes(category);
-    }
+    // Simple logic: block only if category is in block list
+    return blockedCategories.includes(category);
   }
 
   /**
