@@ -3,16 +3,25 @@
  * Manages storage, messaging, and coordination between components
  */
 
+if (typeof window === 'undefined' && typeof self !== 'undefined') {
+  self.window = self;
+}
+
 importScripts('lib/storage-manager.js');
 importScripts('lib/analytics-manager.js');
 importScripts('lib/filter-engine.js');
+importScripts('lib/onnx-runtime-web.min.js');
 importScripts('lib/model-loader.js');
 
 class BackgroundService {
   constructor() {
+    this.activeContentScripts = new Map();
+    this.heartbeatIntervalId = null;
+
     this.initializeAlarms();
     this.setupMessageListeners();
     this.setupTabListeners();
+    this.startContentScriptMonitor();
   }
 
   /**
@@ -58,7 +67,31 @@ class BackgroundService {
   async handleMessage(message, sender, sendResponse) {
     try {
       switch (message.action) {
+        case 'contentScriptReady':
+          if (sender.tab && typeof sender.tab.id === 'number') {
+            this.markContentScriptActive(sender.tab.id);
+            console.log('FocusGuard: Content script ready on tab', sender.tab.id);
+            sendResponse({ success: true });
+          } else {
+            sendResponse({ success: false, error: 'missing_tab_context' });
+          }
+          break;
+
+        case 'contentScriptHeartbeat':
+          if (sender.tab && typeof sender.tab.id === 'number') {
+            this.markContentScriptActive(sender.tab.id);
+            sendResponse({ success: true });
+          } else {
+            sendResponse({ success: false, error: 'missing_tab_context' });
+          }
+          break;
+
+        case 'ping':
+          sendResponse({ status: 'alive' });
+          break;
+
         case 'classifyContent':
+          this.markContentScriptActive(sender?.tab?.id);
           await this.handleClassifyContent(message, sender, sendResponse);
           break;
         
@@ -83,6 +116,7 @@ class BackgroundService {
           break;
         
         case 'logBlockAction':
+          this.markContentScriptActive(sender?.tab?.id);
           await this.handleLogBlockAction(message.data, sendResponse);
           break;
         
@@ -99,7 +133,7 @@ class BackgroundService {
    * Classify content using ML models
    */
   async handleClassifyContent(message, sender, sendResponse) {
-    const { content, type, domain } = message.data;
+    const { content, type, domain } = message.data || {};
     
     try {
       // Load models if not already loaded
@@ -143,16 +177,19 @@ class BackgroundService {
   async handleUpdateSettings(settings, sendResponse) {
     await StorageManager.updateSettings(settings);
     
-    // Notify all content scripts of settings change
     const tabs = await chrome.tabs.query({});
     for (const tab of tabs) {
+      if (!this.isContentScriptActive(tab.id)) {
+        continue;
+      }
+
       try {
-        chrome.tabs.sendMessage(tab.id, {
+        await this.sendMessageToContentScript(tab.id, {
           action: 'settingsUpdated',
-          settings: settings
-        });
+          settings
+        }, { retries: 2, initialDelay: 200, skipInitialPing: true });
       } catch (error) {
-        // Ignore errors for tabs that don't have content script
+        console.debug('FocusGuard: Unable to deliver settings update to tab', tab.id, error?.message || error);
       }
     }
     
@@ -173,14 +210,13 @@ class BackgroundService {
   async handleToggleExtension(tabId, enabled, sendResponse) {
     await StorageManager.setExtensionEnabled(tabId, enabled);
     
-    // Notify content script
     try {
-      chrome.tabs.sendMessage(tabId, {
+      await this.sendMessageToContentScript(tabId, {
         action: 'toggleFiltering',
         enabled: enabled
       });
     } catch (error) {
-      console.error('FocusGuard: Error notifying content script:', error);
+      console.warn('FocusGuard: Error notifying content script:', error?.message || error);
     }
     
     sendResponse({ success: true });
@@ -213,10 +249,116 @@ class BackgroundService {
   }
 
   /**
+   * Manage active content script tracking
+   */
+  markContentScriptActive(tabId) {
+    if (typeof tabId === 'number') {
+      this.activeContentScripts.set(tabId, Date.now());
+    }
+  }
+
+  markContentScriptInactive(tabId) {
+    if (typeof tabId === 'number') {
+      this.activeContentScripts.delete(tabId);
+    }
+  }
+
+  isContentScriptActive(tabId) {
+    return typeof tabId === 'number' && this.activeContentScripts.has(tabId);
+  }
+
+  startContentScriptMonitor() {
+    if (typeof setInterval !== 'function') {
+      return;
+    }
+
+    const CHECK_INTERVAL = 60000;
+    const STALE_THRESHOLD = 120000;
+
+    if (this.heartbeatIntervalId) {
+      clearInterval(this.heartbeatIntervalId);
+    }
+
+    this.heartbeatIntervalId = setInterval(() => {
+      const now = Date.now();
+
+      for (const [tabId, lastSeen] of this.activeContentScripts.entries()) {
+        if (now - lastSeen > STALE_THRESHOLD) {
+          this.activeContentScripts.delete(tabId);
+        }
+      }
+    }, CHECK_INTERVAL);
+  }
+
+  delay(ms) {
+    return new Promise((resolve) => setTimeout(resolve, ms));
+  }
+
+  async pingContentScript(tabId) {
+    if (typeof tabId !== 'number') {
+      throw new Error('invalid_tab_id');
+    }
+
+    try {
+      await chrome.tabs.sendMessage(tabId, { action: 'ping' });
+      this.markContentScriptActive(tabId);
+      return true;
+    } catch (error) {
+      this.markContentScriptInactive(tabId);
+      throw error;
+    }
+  }
+
+  async sendMessageToContentScript(tabId, message, options = {}) {
+    if (typeof tabId !== 'number') {
+      throw new Error('invalid_tab_id');
+    }
+
+    const {
+      retries = 3,
+      initialDelay = 150,
+      skipInitialPing = false
+    } = options;
+
+    let attempt = 0;
+    let shouldPing = skipInitialPing ? false : !this.isContentScriptActive(tabId);
+
+    while (attempt < retries) {
+      try {
+        if (shouldPing) {
+          await this.pingContentScript(tabId);
+          shouldPing = false;
+        }
+
+        const response = await chrome.tabs.sendMessage(tabId, message);
+        this.markContentScriptActive(tabId);
+        return response;
+      } catch (error) {
+        this.markContentScriptInactive(tabId);
+
+        attempt += 1;
+        if (attempt >= retries) {
+          throw error;
+        }
+
+        const delayDuration = initialDelay * Math.pow(2, attempt - 1);
+        await this.delay(delayDuration);
+        shouldPing = true;
+      }
+    }
+
+    return null;
+  }
+
+  /**
    * Setup tab listeners for extension lifecycle
    */
   setupTabListeners() {
     chrome.tabs.onUpdated.addListener((tabId, changeInfo, tab) => {
+      if (changeInfo.status === 'loading') {
+        this.markContentScriptInactive(tabId);
+      }
+
       if (changeInfo.status === 'complete' && tab.url) {
         // Initialize tab settings if not exists
         StorageManager.getExtensionEnabled(tabId).then(enabled => {
@@ -228,7 +370,7 @@ class BackgroundService {
     });
 
     chrome.tabs.onRemoved.addListener((tabId) => {
-      // Clean up tab-specific data if needed
+      this.markContentScriptInactive(tabId);
     });
   }
 }
