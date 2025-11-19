@@ -248,7 +248,9 @@ class BackgroundService {
       data.type, 
       data.category, 
       data.domain, 
-      data.timestamp
+      data.timestamp,
+      data.contentSnippet,
+      data.actionType
     );
     sendResponse({ success: true });
   }
