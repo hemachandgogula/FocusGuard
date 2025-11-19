@@ -313,20 +313,78 @@ class ContentScriptManager {
 
   async classifyContent(data, type, domain) {
     try {
+      let classificationData = data;
+
+      if (type === 'video' && data && typeof data === 'object') {
+        classificationData = this.prepareVideoClassificationData(data);
+      }
+
       const response = await chrome.runtime.sendMessage({
         action: 'classifyContent',
-        data: { content: data, type, domain }
+        data: { content: classificationData, type, domain }
       });
 
       if (response && response.success) {
         return response.classification;
       }
 
-      return KeywordFallback.classifyByKeywords(data, domain);
+      return KeywordFallback.classifyByKeywords(classificationData, domain);
     } catch (error) {
       console.error('FocusGuard: Classification error:', error);
       return KeywordFallback.classifyByKeywords(data, domain);
     }
+  }
+
+  /**
+   * Prepare video data for classification by combining all metadata
+   * @param {Object} videoData - Video data object
+   * @returns {Object} Prepared classification data
+   */
+  prepareVideoClassificationData(videoData) {
+    const textParts = [];
+
+    if (videoData.title) {
+      textParts.push(videoData.title);
+    }
+
+    if (videoData.ariaLabel) {
+      textParts.push(videoData.ariaLabel);
+    }
+
+    if (videoData.dataTitle) {
+      textParts.push(videoData.dataTitle);
+    }
+
+    if (videoData.description) {
+      textParts.push(videoData.description);
+    }
+
+    if (videoData.captions) {
+      textParts.push(videoData.captions);
+    }
+
+    if (videoData.nearbyTextBefore) {
+      textParts.push(videoData.nearbyTextBefore);
+    }
+
+    if (videoData.nearbyTextAfter) {
+      textParts.push(videoData.nearbyTextAfter);
+    }
+
+    const combinedText = textParts
+      .filter(part => part && typeof part === 'string')
+      .join(' ')
+      .trim();
+
+    if (combinedText) {
+      return {
+        ...videoData,
+        title: combinedText,
+        description: combinedText
+      };
+    }
+
+    return videoData;
   }
 
   isDomainAllowed(domain) {

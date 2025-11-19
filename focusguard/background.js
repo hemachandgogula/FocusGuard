@@ -144,15 +144,21 @@ class BackgroundService {
     const { content, type, domain } = message.data || {};
     
     try {
-      // Load models if not already loaded
-      const textSession = await ModelLoader.loadTextClassifier();
-      const nsfwSession = await ModelLoader.loadNSFWClassifier();
-      
-      // Classify based on content type
       let result;
-      if (type === 'text') {
+
+      if (type === 'video' && content && typeof content === 'object') {
+        const combinedText = this.extractVideoClassificationText(content);
+        if (combinedText) {
+          const textSession = await ModelLoader.loadTextClassifier();
+          result = await ModelLoader.runInference(textSession, combinedText, 'text');
+        } else {
+          result = { category: 'unknown', confidence: 0.0 };
+        }
+      } else if (type === 'text') {
+        const textSession = await ModelLoader.loadTextClassifier();
         result = await ModelLoader.runInference(textSession, content, 'text');
       } else if (type === 'image') {
+        const nsfwSession = await ModelLoader.loadNSFWClassifier();
         result = await ModelLoader.runInference(nsfwSession, content, 'image');
       } else {
         result = { category: 'unknown', confidence: 0.0 };
@@ -169,6 +175,48 @@ class BackgroundService {
         error: error.message 
       });
     }
+  }
+
+  /**
+   * Extract combined classification text from video data
+   * @param {Object} videoData - Video data object
+   * @returns {string} Combined text for classification
+   */
+  extractVideoClassificationText(videoData) {
+    const textParts = [];
+
+    if (videoData.title && typeof videoData.title === 'string') {
+      textParts.push(videoData.title);
+    }
+
+    if (videoData.ariaLabel && typeof videoData.ariaLabel === 'string') {
+      textParts.push(videoData.ariaLabel);
+    }
+
+    if (videoData.dataTitle && typeof videoData.dataTitle === 'string') {
+      textParts.push(videoData.dataTitle);
+    }
+
+    if (videoData.description && typeof videoData.description === 'string') {
+      textParts.push(videoData.description);
+    }
+
+    if (videoData.captions && typeof videoData.captions === 'string') {
+      textParts.push(videoData.captions);
+    }
+
+    if (videoData.nearbyTextBefore && typeof videoData.nearbyTextBefore === 'string') {
+      textParts.push(videoData.nearbyTextBefore);
+    }
+
+    if (videoData.nearbyTextAfter && typeof videoData.nearbyTextAfter === 'string') {
+      textParts.push(videoData.nearbyTextAfter);
+    }
+
+    return textParts
+      .filter(part => part && typeof part === 'string' && part.trim().length > 0)
+      .join(' ')
+      .trim();
   }
 
   /**
