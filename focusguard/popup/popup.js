@@ -42,7 +42,46 @@ async function loadSettings() {
     const response = await chrome.runtime.sendMessage({ action: 'getSettings' });
     if (response?.success) {
       currentSettings = response.settings || {};
-      const isEnabled = currentSettings.extensionEnabled !== false;
+      
+      // Get extension enabled state (consider both global and tab-specific)
+      let isEnabled = true; // Default to enabled
+      if (currentTab?.id) {
+        // Check both global and tab-specific state
+        let globalEnabled = true;
+        let tabEnabled = true;
+        
+        if (typeof StorageManager !== 'undefined' && StorageManager.getExtensionEnabledGlobal && StorageManager.getExtensionEnabled) {
+          globalEnabled = await StorageManager.getExtensionEnabledGlobal();
+          tabEnabled = await StorageManager.getExtensionEnabled(currentTab.id);
+        } else {
+          // Fallback: ask background service for states
+          const globalResponse = await chrome.runtime.sendMessage({ 
+            action: 'getSettings' 
+          });
+          if (globalResponse?.success) {
+            globalEnabled = globalResponse.settings.extensionEnabled !== false;
+          }
+          
+          const tabResponse = await chrome.runtime.sendMessage({ 
+            action: 'getTabExtensionState', 
+            tabId: currentTab.id 
+          });
+          if (tabResponse?.success) {
+            tabEnabled = tabResponse.enabled;
+          }
+        }
+        
+        // Extension is only enabled if both global and tab-specific states are enabled
+        isEnabled = globalEnabled && tabEnabled;
+      } else {
+        // No tab available, just check global state
+        if (typeof StorageManager !== 'undefined' && StorageManager.getExtensionEnabledGlobal) {
+          isEnabled = await StorageManager.getExtensionEnabledGlobal();
+        } else if (currentSettings.extensionEnabled !== undefined) {
+          isEnabled = currentSettings.extensionEnabled !== false;
+        }
+      }
+      
       updateStatusToggle(isEnabled);
       updateModeButtons(currentSettings.filterMode || 'blur');
     }
@@ -135,10 +174,30 @@ function updateModeButtons(mode) {
 
 async function toggleExtension(enabled) {
   if (!currentTab?.id) {
+    console.warn('FocusGuard: No current tab available for toggle');
     return;
   }
 
   try {
+    // Check global state first - if global is disabled, don't allow tab-specific enable
+    if (enabled) {
+      let globalEnabled = true;
+      if (typeof StorageManager !== 'undefined' && StorageManager.getExtensionEnabledGlobal) {
+        globalEnabled = await StorageManager.getExtensionEnabledGlobal();
+      } else {
+        const globalResponse = await chrome.runtime.sendMessage({ action: 'getSettings' });
+        if (globalResponse?.success) {
+          globalEnabled = globalResponse.settings.extensionEnabled !== false;
+        }
+      }
+      
+      if (!globalEnabled) {
+        alert('❌ Extension is disabled globally. Please enable it in settings first.');
+        updateStatusToggle(false);
+        return;
+      }
+    }
+
     const response = await chrome.runtime.sendMessage({
       action: 'toggleExtension',
       tabId: currentTab.id,
@@ -149,9 +208,21 @@ async function toggleExtension(enabled) {
       throw new Error(response?.error || 'toggle_failed');
     }
 
+    // Update the UI immediately for better UX
     updateStatusToggle(enabled);
+    
+    // Show brief feedback
+    const statusText = document.getElementById('statusText');
+    if (statusText) {
+      const originalText = statusText.textContent;
+      statusText.textContent = enabled ? '✓ Activated' : '✓ Paused';
+      setTimeout(() => {
+        statusText.textContent = originalText;
+      }, 1000);
+    }
   } catch (error) {
     console.error('FocusGuard: Failed to toggle extension', error);
+    // Revert the toggle state on error
     updateStatusToggle(!enabled);
     alert('❌ Unable to update filtering status for this tab.');
   }

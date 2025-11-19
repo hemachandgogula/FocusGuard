@@ -111,6 +111,10 @@ class BackgroundService {
           await this.handleToggleExtension(message.tabId, message.enabled, sendResponse);
           break;
         
+        case 'getTabExtensionState':
+          await this.handleGetTabExtensionState(message.tabId, sendResponse);
+          break;
+        
         case 'addDomainToList':
           await this.handleAddDomainToList(message.domain, message.listType, sendResponse);
           break;
@@ -225,6 +229,14 @@ class BackgroundService {
     }
     
     sendResponse({ success: true });
+  }
+
+  /**
+   * Get extension enabled state for specific tab
+   */
+  async handleGetTabExtensionState(tabId, sendResponse) {
+    const enabled = await StorageManager.getExtensionEnabled(tabId);
+    sendResponse({ success: true, enabled });
   }
 
   /**

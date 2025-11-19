@@ -18,6 +18,7 @@ class StorageManager {
     [StorageManager.KEYS.BLOCKED_CATEGORIES]: ['Adult Content', 'Entertainment', 'Cruelty'],
     [StorageManager.KEYS.FILTER_MODE]: 'blur',
     [StorageManager.KEYS.SENSITIVITY]: 'medium',
+    [StorageManager.KEYS.EXTENSION_ENABLED]: true,
     [StorageManager.KEYS.BLOCKED_DOMAINS]: [],
     [StorageManager.KEYS.ALLOWED_DOMAINS]: []
   };
@@ -110,6 +111,23 @@ class StorageManager {
       case 'high': return 0.9;
       default: return 0.7;
     }
+  }
+
+  /**
+   * Get global extension enabled state
+   * @returns {Promise<boolean>} Extension enabled status
+   */
+  static async getExtensionEnabledGlobal() {
+    const result = await chrome.storage.sync.get(StorageManager.KEYS.EXTENSION_ENABLED);
+    return result[StorageManager.KEYS.EXTENSION_ENABLED] !== false; // Default to true
+  }
+
+  /**
+   * Set global extension enabled state
+   * @param {boolean} enabled - Extension enabled status
+   */
+  static async setExtensionEnabledGlobal(enabled) {
+    await chrome.storage.sync.set({ [StorageManager.KEYS.EXTENSION_ENABLED]: enabled });
   }
 
   /**
