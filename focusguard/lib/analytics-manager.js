@@ -11,19 +11,23 @@ class AnalyticsManager {
     BLOCKED_DOMAINS: 'blockedDomains',
     ACTION_LOG: 'actionLog',
     SESSION_STATS: 'sessionStats',
-    HISTORICAL_DATA: 'historicalData'
+    HISTORICAL_DATA: 'historicalData',
+    DETAILED_LOGS: 'detailedLogs'
   };
 
   static MAX_LOG_ENTRIES = 100;
+  static MAX_DETAILED_LOG_ENTRIES = 500;
 
   /**
-   * Log a block action
+   * Log a block action with detailed information
    * @param {string} type - Type of content ('text', 'image', 'video')
    * @param {string} category - Content category
    * @param {string} domain - Domain where blocked
    * @param {number} timestamp - Timestamp of action
+   * @param {string} contentSnippet - Extracted text or alt text (first 100 chars)
+   * @param {string} actionType - Action taken ('blur' or 'block')
    */
-  static async logBlockAction(type, category, domain, timestamp) {
+  static async logBlockAction(type, category, domain, timestamp, contentSnippet = '', actionType = 'blur') {
     try {
       // Increment block counts
       await AnalyticsManager.incrementBlockCount(type);
@@ -38,6 +42,16 @@ class AnalyticsManager {
         category,
         domain,
         timestamp: timestamp || Date.now()
+      });
+      
+      // Add to detailed logs
+      await AnalyticsManager.addToDetailedLogs({
+        type,
+        category,
+        domain,
+        timestamp: timestamp || Date.now(),
+        contentSnippet: contentSnippet.substring(0, 100),
+        actionType
       });
       
       // Update session stats
@@ -98,6 +112,24 @@ class AnalyticsManager {
   }
 
   /**
+   * Add entry to detailed logs
+   * @param {Object} entry - Detailed log entry object
+   */
+  static async addToDetailedLogs(entry) {
+    const result = await chrome.storage.local.get(AnalyticsManager.KEYS.DETAILED_LOGS);
+    let logs = result[AnalyticsManager.KEYS.DETAILED_LOGS] || [];
+    
+    logs.push(entry);
+    
+    // Keep only recent entries
+    if (logs.length > AnalyticsManager.MAX_DETAILED_LOG_ENTRIES) {
+      logs = logs.slice(-AnalyticsManager.MAX_DETAILED_LOG_ENTRIES);
+    }
+    
+    await chrome.storage.local.set({ [AnalyticsManager.KEYS.DETAILED_LOGS]: logs });
+  }
+
+  /**
    * Update session statistics
    */
   static async updateSessionStats() {
@@ -139,7 +171,8 @@ class AnalyticsManager {
         endTime: null,
         totalBlocked: 0
       },
-      historicalData: result[AnalyticsManager.KEYS.HISTORICAL_DATA] || {}
+      historicalData: result[AnalyticsManager.KEYS.HISTORICAL_DATA] || {},
+      detailedLogs: result[AnalyticsManager.KEYS.DETAILED_LOGS] || []
     };
     
     // Calculate total blocks today
@@ -197,14 +230,16 @@ class AnalyticsManager {
         AnalyticsManager.KEYS.BLOCKED_IMAGES,
         AnalyticsManager.KEYS.BLOCKED_VIDEOS,
         AnalyticsManager.KEYS.BLOCKED_DOMAINS,
-        AnalyticsManager.KEYS.ACTION_LOG
+        AnalyticsManager.KEYS.ACTION_LOG,
+        AnalyticsManager.KEYS.DETAILED_LOGS
       ];
       
       const resetData = {};
       resetKeys.forEach(key => {
         if (key === AnalyticsManager.KEYS.BLOCKED_DOMAINS) {
           resetData[key] = {};
-        } else if (key === AnalyticsManager.KEYS.ACTION_LOG) {
+        } else if (key === AnalyticsManager.KEYS.ACTION_LOG || 
+                   key === AnalyticsManager.KEYS.DETAILED_LOGS) {
           resetData[key] = [];
         } else {
           resetData[key] = { count: 0, lastUpdated: Date.now() };
@@ -234,7 +269,8 @@ class AnalyticsManager {
       blockedVideos: stats.blockedVideos.count,
       blockedDomains: stats.blockedDomains,
       totalBlocks: stats.totalBlocksToday,
-      sessionStats: stats.sessionStats
+      sessionStats: stats.sessionStats,
+      detailedLogsCount: stats.detailedLogs.length
     };
     
     // Keep only last 30 days of historical data
@@ -273,6 +309,73 @@ class AnalyticsManager {
   }
 
   /**
+   * Get detailed logs with optional filtering
+   * @param {Object} filters - Filter options
+   * @param {string} filters.category - Filter by category
+   * @param {string} filters.type - Filter by content type ('text', 'image', 'video')
+   * @param {string} filters.actionType - Filter by action type ('blur', 'block')
+   * @param {number} filters.timeRange - Filter by time range in hours (e.g., 24 for last 24 hours)
+   * @param {number} limit - Maximum number of entries to return
+   * @returns {Promise<Array>} Filtered detailed logs
+   */
+  static async getDetailedLogs(filters = {}, limit = 100) {
+    const stats = await AnalyticsManager.getStats();
+    let logs = [...stats.detailedLogs];
+    
+    // Sort by timestamp (newest first)
+    logs.sort((a, b) => b.timestamp - a.timestamp);
+    
+    // Apply filters
+    if (filters.category) {
+      logs = logs.filter(log => log.category === filters.category);
+    }
+    
+    if (filters.type) {
+      logs = logs.filter(log => log.type === filters.type);
+    }
+    
+    if (filters.actionType) {
+      logs = logs.filter(log => log.actionType === filters.actionType);
+    }
+    
+    if (filters.timeRange) {
+      const cutoffTime = Date.now() - (filters.timeRange * 60 * 60 * 1000);
+      logs = logs.filter(log => log.timestamp >= cutoffTime);
+    }
+    
+    // Apply limit
+    if (limit > 0) {
+      logs = logs.slice(0, limit);
+    }
+    
+    return logs;
+  }
+
+  /**
+   * Get category breakdown from detailed logs
+   * @param {Object} filters - Optional filters
+   * @returns {Promise<Object>} Category counts
+   */
+  static async getCategoryBreakdown(filters = {}) {
+    const logs = await AnalyticsManager.getDetailedLogs(filters);
+    const breakdown = {};
+    
+    logs.forEach(log => {
+      const category = log.category || 'Unknown';
+      breakdown[category] = (breakdown[category] || 0) + 1;
+    });
+    
+    return breakdown;
+  }
+
+  /**
+   * Clear detailed logs
+   */
+  static async clearDetailedLogs() {
+    await chrome.storage.local.set({ [AnalyticsManager.KEYS.DETAILED_LOGS]: [] });
+  }
+
+  /**
    * Export analytics data as JSON
    * @returns {Promise<string>} JSON string of analytics data
    */
@@ -299,7 +402,9 @@ class AnalyticsManager {
     keys.forEach(key => {
       if (key === AnalyticsManager.KEYS.BLOCKED_DOMAINS) {
         clearData[key] = {};
-      } else if (key === AnalyticsManager.KEYS.ACTION_LOG || key === AnalyticsManager.KEYS.HISTORICAL_DATA) {
+      } else if (key === AnalyticsManager.KEYS.ACTION_LOG || 
+                 key === AnalyticsManager.KEYS.HISTORICAL_DATA || 
+                 key === AnalyticsManager.KEYS.DETAILED_LOGS) {
         clearData[key] = [];
       } else if (key === AnalyticsManager.KEYS.SESSION_STATS) {
         clearData[key] = {

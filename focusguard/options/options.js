@@ -24,6 +24,7 @@ async function initOptions() {
   await renderCategoryGrid();
   setupEventListeners();
   await loadAnalytics();
+  setupDetailedAnalytics();
 }
 
 async function loadSettings() {
@@ -385,6 +386,173 @@ function showSaveNotification(message, type = 'success') {
   setTimeout(() => {
     notification.classList.remove('show');
   }, 3000);
+}
+
+function setupDetailedAnalytics() {
+  const showDetailsBtn = document.getElementById('showDetailsBtn');
+  const detailsSection = document.getElementById('detailsSection');
+  const clearDetailsBtn = document.getElementById('clearDetailsBtn');
+  
+  if (showDetailsBtn && detailsSection) {
+    showDetailsBtn.addEventListener('click', () => {
+      const isVisible = detailsSection.style.display !== 'none';
+      detailsSection.style.display = isVisible ? 'none' : 'block';
+      showDetailsBtn.textContent = isVisible ? '📊 Show Details' : '📊 Hide Details';
+      
+      if (!isVisible) {
+        loadDetailedAnalytics();
+      }
+    });
+  }
+  
+  if (clearDetailsBtn) {
+    clearDetailsBtn.addEventListener('click', async () => {
+      if (confirm('Clear all detailed analytics logs? This action cannot be undone.')) {
+        try {
+          await AnalyticsManager.clearDetailedLogs();
+          loadDetailedAnalytics();
+          showToast('Detailed logs cleared', 'success');
+        } catch (error) {
+          console.error('FocusGuard: Error clearing detailed logs:', error);
+          showToast('Error clearing detailed logs', 'error');
+        }
+      }
+    });
+  }
+  
+  // Setup filter listeners
+  const filterElements = ['categoryFilter', 'typeFilter', 'actionFilter', 'timeFilter'];
+  filterElements.forEach(id => {
+    const element = document.getElementById(id);
+    if (element) {
+      element.addEventListener('change', loadDetailedAnalytics);
+    }
+  });
+}
+
+async function loadDetailedAnalytics() {
+  try {
+    await loadCategoryBreakdown();
+    await loadDetailedLogs();
+  } catch (error) {
+    console.error('FocusGuard: Error loading detailed analytics:', error);
+  }
+}
+
+async function loadCategoryBreakdown() {
+  try {
+    const filters = getCurrentFilters();
+    const breakdown = await AnalyticsManager.getCategoryBreakdown(filters);
+    renderCategoryBreakdown(breakdown);
+    
+    // Update category filter options
+    await updateCategoryFilter();
+  } catch (error) {
+    console.error('FocusGuard: Error loading category breakdown:', error);
+  }
+}
+
+async function loadDetailedLogs() {
+  try {
+    const filters = getCurrentFilters();
+    const logs = await AnalyticsManager.getDetailedLogs(filters, 50);
+    renderDetailedLogs(logs);
+  } catch (error) {
+    console.error('FocusGuard: Error loading detailed logs:', error);
+  }
+}
+
+function getCurrentFilters() {
+  return {
+    category: document.getElementById('categoryFilter')?.value || '',
+    type: document.getElementById('typeFilter')?.value || '',
+    actionType: document.getElementById('actionFilter')?.value || '',
+    timeRange: document.getElementById('timeFilter')?.value ? 
+                parseInt(document.getElementById('timeFilter').value) : null
+  };
+}
+
+async function updateCategoryFilter() {
+  try {
+    const stats = await AnalyticsManager.getStats();
+    const logs = stats.detailedLogs || [];
+    const categories = new Set();
+    
+    logs.forEach(log => {
+      if (log.category) {
+        categories.add(log.category);
+      }
+    });
+    
+    const categoryFilter = document.getElementById('categoryFilter');
+    if (categoryFilter) {
+      const currentValue = categoryFilter.value;
+      categoryFilter.innerHTML = '<option value="">All Categories</option>';
+      
+      Array.from(categories).sort().forEach(category => {
+        const option = document.createElement('option');
+        option.value = category;
+        option.textContent = category;
+        categoryFilter.appendChild(option);
+      });
+      
+      categoryFilter.value = currentValue;
+    }
+  } catch (error) {
+    console.error('FocusGuard: Error updating category filter:', error);
+  }
+}
+
+function renderCategoryBreakdown(breakdown) {
+  const container = document.getElementById('categoryBreakdownContent');
+  if (!container) return;
+  
+  const entries = Object.entries(breakdown);
+  
+  if (entries.length === 0) {
+    container.innerHTML = '<span class="placeholder-text">No data available</span>';
+    return;
+  }
+  
+  // Sort by count (descending)
+  entries.sort((a, b) => b[1] - a[1]);
+  
+  container.innerHTML = entries.map(([category, count]) => `
+    <div class="category-item">
+      <span class="category-name">${category}</span>
+      <span class="category-count">${count}</span>
+    </div>
+  `).join('');
+}
+
+function renderDetailedLogs(logs) {
+  const container = document.getElementById('detailedLogsList');
+  if (!container) return;
+  
+  if (logs.length === 0) {
+    container.innerHTML = '<span class="placeholder-text">No detailed logs available</span>';
+    return;
+  }
+  
+  container.innerHTML = logs.map(log => {
+    const timestamp = new Date(log.timestamp).toLocaleString();
+    const contentSnippet = log.contentSnippet || '';
+    
+    return `
+      <div class="log-entry">
+        <div class="log-header">
+          <div class="log-meta">
+            <span class="log-type ${log.type}">${log.type}</span>
+            <span class="log-action ${log.actionType}">${log.actionType}</span>
+            <span class="log-category">${log.category}</span>
+            <span class="log-domain">${log.domain}</span>
+          </div>
+          <span class="log-timestamp">${timestamp}</span>
+        </div>
+        ${contentSnippet ? `<div class="log-content">"${contentSnippet}"</div>` : '<div class="log-content"></div>'}
+      </div>
+    `;
+  }).join('');
 }
 
 function setupEventListeners() {

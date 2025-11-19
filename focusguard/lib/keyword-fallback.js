@@ -47,7 +47,7 @@ class KeywordFallback {
 
   /**
    * Classify content by keywords and domain
-   * @param {string} text - Text content to classify
+   * @param {string|Object} text - Text content or media object to classify
    * @param {string} domain - Domain name
    * @returns {Object} Classification result {category, confidence}
    */
@@ -58,7 +58,7 @@ class KeywordFallback {
 
   /**
    * Classify content instance method
-   * @param {string} text - Text content to classify
+   * @param {string|Object} text - Text content or media object to classify
    * @param {string} domain - Domain name
    * @returns {Object} Classification result {category, confidence}
    */
@@ -76,17 +76,20 @@ class KeywordFallback {
         return { category: 'Education', confidence: 0.8 };
       }
 
-      if (!text) {
-        console.warn('FocusGuard: classifyContent received empty text');
+      // Extract text from media objects if needed
+      const extractedText = this.extractTextFromContent(text);
+      
+      if (!extractedText) {
+        console.warn('FocusGuard: No extractable text found for classification');
         return { category: 'unknown', confidence: 0.0 };
       }
 
-      if (typeof text !== 'string') {
-        console.warn('FocusGuard: Invalid text input for classification', typeof text, text);
-        text = String(text);
+      if (typeof extractedText !== 'string') {
+        console.warn('FocusGuard: Invalid text input for classification', typeof extractedText, extractedText);
+        text = String(extractedText);
       }
 
-      const result = this.classifyByText(text, domain);
+      const result = this.classifyByText(extractedText, domain);
       if (!result || !result.category) {
         return { category: 'unknown', confidence: 0.0 };
       }
@@ -352,6 +355,100 @@ class KeywordFallback {
     if (data.categoryKeywords) {
       this.categoryKeywords = { ...data.categoryKeywords };
     }
+  }
+
+  /**
+   * Extract text from various content types (text, images, videos)
+   * @param {string|Object} content - Content to extract text from
+   * @returns {string|null} Extracted text or null if no text found
+   */
+  extractTextFromContent(content) {
+    // If it's already a string, return it directly
+    if (typeof content === 'string') {
+      return content.trim() || null;
+    }
+
+    // If it's not an object, return null
+    if (!content || typeof content !== 'object') {
+      return null;
+    }
+
+    const textSources = [];
+
+    // Handle image objects
+    if (content.src || content.alt !== undefined) {
+      // Add alt text
+      if (content.alt && typeof content.alt === 'string' && content.alt.trim()) {
+        textSources.push(content.alt.trim());
+      }
+
+      // Add title from src if it's a blob URL (try to extract from filename)
+      if (content.src && typeof content.src === 'string') {
+        if (content.src.startsWith('blob:')) {
+          // For blob URLs, we can't extract much, but we can note it's media
+          textSources.push('media content');
+        } else {
+          // Try to extract filename from URL
+          try {
+            const url = new URL(content.src);
+            const filename = url.pathname.split('/').pop();
+            if (filename && filename !== '') {
+              // Remove extension and decode
+              const nameWithoutExt = filename.split('.').slice(0, -1).join('.');
+              const decodedName = decodeURIComponent(nameWithoutExt);
+              if (decodedName && decodedName.length > 2) {
+                textSources.push(decodedName.replace(/[-_]/g, ' '));
+              }
+            }
+          } catch (e) {
+            // Invalid URL, skip
+          }
+        }
+      }
+    }
+
+    // Handle video objects
+    if (content.poster !== undefined || content.duration !== undefined) {
+      // Add poster text (extract filename like images)
+      if (content.poster && typeof content.poster === 'string' && content.poster.trim()) {
+        try {
+          const url = new URL(content.poster);
+          const filename = url.pathname.split('/').pop();
+          if (filename && filename !== '') {
+            const nameWithoutExt = filename.split('.').slice(0, -1).join('.');
+            const decodedName = decodeURIComponent(nameWithoutExt);
+            if (decodedName && decodedName.length > 2) {
+              textSources.push(decodedName.replace(/[-_]/g, ' '));
+            }
+          }
+        } catch (e) {
+          // Invalid URL, use as-is if it's not a URL
+          if (!content.poster.includes('://')) {
+            textSources.push(content.poster.trim());
+          }
+        }
+      }
+
+      // Add generic video indicator
+      textSources.push('video content');
+    }
+
+    // Handle any other text properties
+    if (content.title && typeof content.title === 'string' && content.title.trim()) {
+      textSources.push(content.title.trim());
+    }
+
+    if (content.description && typeof content.description === 'string' && content.description.trim()) {
+      textSources.push(content.description.trim());
+    }
+
+    // Combine all text sources
+    if (textSources.length === 0) {
+      return null;
+    }
+
+    const combinedText = textSources.join(' ').trim();
+    return combinedText || null;
   }
 
   /**

@@ -298,8 +298,12 @@ class ContentScriptManager {
       );
 
       if (shouldBlock) {
+        // Extract content snippet for analytics
+        const contentSnippet = this.extractContentSnippet(data, type);
+        const actionType = this.settings.filterMode || 'blur';
+        
         this.applyFilter(element, classification.category, type);
-        this.logBlockAction(type, classification.category, domain);
+        this.logBlockAction(type, classification.category, domain, contentSnippet, actionType);
       }
 
     } catch (error) {
@@ -352,16 +356,64 @@ class ContentScriptManager {
     });
   }
 
-  logBlockAction(type, category, domain) {
+  logBlockAction(type, category, domain, contentSnippet = '', actionType = 'blur') {
     chrome.runtime.sendMessage({
       action: 'logBlockAction',
       data: {
         type,
         category,
         domain: domain || this.currentDomain,
-        timestamp: Date.now()
+        timestamp: Date.now(),
+        contentSnippet,
+        actionType
       }
     });
+  }
+
+  /**
+   * Extract content snippet for analytics
+   * @param {string|Object} data - Content data
+   * @param {string} type - Content type
+   * @returns {string} Content snippet
+   */
+  extractContentSnippet(data, type) {
+    if (typeof data === 'string') {
+      return data.substring(0, 100);
+    }
+
+    if (!data || typeof data !== 'object') {
+      return '';
+    }
+
+    // For images, use alt text
+    if (type === 'image' && data.alt) {
+      return data.alt.toString().substring(0, 100);
+    }
+
+    // For videos, use poster or other metadata
+    if (type === 'video') {
+      if (data.poster) {
+        try {
+          const url = new URL(data.poster);
+          const filename = url.pathname.split('/').pop();
+          if (filename) {
+            return filename.split('.')[0].substring(0, 100);
+          }
+        } catch (e) {
+          return data.poster.toString().substring(0, 100);
+        }
+      }
+    }
+
+    // Try other common properties
+    const textProps = ['title', 'description', 'alt', 'src'];
+    for (const prop of textProps) {
+      if (data[prop] && typeof data[prop] === 'string') {
+        return data[prop].substring(0, 100);
+      }
+    }
+
+    return '';
   }
 
   sleep(ms) {
