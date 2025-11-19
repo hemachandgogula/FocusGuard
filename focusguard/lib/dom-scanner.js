@@ -344,18 +344,22 @@ class DOMScanner {
     
     if (video.tagName === 'VIDEO') {
       if (video.src || video.querySelector('source')) {
+        const videoMetadata = this.extractVideoMetadata(video);
         videoInfo = {
           src: video.src,
           poster: video.poster,
-          duration: video.duration
+          duration: video.duration,
+          ...videoMetadata
         };
       }
     } else if (video.tagName === 'IFRAME') {
       const src = video.src || '';
       if (src.includes('youtube.com') || src.includes('vimeo.com') || src.includes('video')) {
+        const iframeMetadata = this.extractIframeMetadata(video);
         videoInfo = {
           src: src,
-          type: 'embed'
+          type: 'embed',
+          ...iframeMetadata
         };
       }
     }
@@ -370,6 +374,130 @@ class DOMScanner {
     }
     
     return null;
+  }
+
+  /**
+   * Extract metadata from video element
+   * @param {Element} video - Video element
+   * @returns {Object} Extracted metadata
+   */
+  extractVideoMetadata(video) {
+    const metadata = {};
+
+    // Try to get title
+    if (video.title) {
+      metadata.title = video.title;
+    }
+
+    // Try to get aria-label
+    if (video.getAttribute('aria-label')) {
+      metadata.ariaLabel = video.getAttribute('aria-label');
+    }
+
+    // Try to get data attributes
+    const dataset = video.dataset;
+    if (dataset.title) metadata.dataTitle = dataset.title;
+    if (dataset.description) metadata.description = dataset.description;
+
+    // Try to find caption or track elements
+    const tracks = video.querySelectorAll('track');
+    if (tracks.length > 0) {
+      const captions = [];
+      tracks.forEach(track => {
+        if (track.kind === 'captions' || track.kind === 'subtitles') {
+          if (track.label) captions.push(track.label);
+          if (track.srclang) captions.push(track.srclang);
+        }
+      });
+      if (captions.length > 0) {
+        metadata.captions = captions.join(' ');
+      }
+    }
+
+    // Look for adjacent text nodes (often video titles)
+    const parent = video.parentElement;
+    if (parent) {
+      const previousText = this.extractAdjacentText(video, 'before');
+      const nextText = this.extractAdjacentText(video, 'after');
+      if (previousText) metadata.nearbyTextBefore = previousText;
+      if (nextText) metadata.nearbyTextAfter = nextText;
+    }
+
+    return metadata;
+  }
+
+  /**
+   * Extract metadata from iframe element
+   * @param {Element} iframe - Iframe element
+   * @returns {Object} Extracted metadata
+   */
+  extractIframeMetadata(iframe) {
+    const metadata = {};
+
+    // Get iframe title
+    if (iframe.title) {
+      metadata.title = iframe.title;
+    }
+
+    // Get iframe aria-label
+    if (iframe.getAttribute('aria-label')) {
+      metadata.ariaLabel = iframe.getAttribute('aria-label');
+    }
+
+    // Try to extract video ID from URL and search for related text
+    const src = iframe.src || '';
+    if (src.includes('youtube.com')) {
+      const videoIdMatch = src.match(/v=([a-zA-Z0-9_-]{11})/);
+      if (videoIdMatch) {
+        metadata.youtubeId = videoIdMatch[1];
+      }
+    }
+
+    // Look for adjacent text nodes (often video titles)
+    const previousText = this.extractAdjacentText(iframe, 'before');
+    const nextText = this.extractAdjacentText(iframe, 'after');
+    if (previousText) metadata.nearbyTextBefore = previousText;
+    if (nextText) metadata.nearbyTextAfter = nextText;
+
+    return metadata;
+  }
+
+  /**
+   * Extract text adjacent to element
+   * @param {Element} element - Reference element
+   * @param {string} direction - 'before' or 'after'
+   * @returns {string|null} Adjacent text or null
+   */
+  extractAdjacentText(element, direction = 'before') {
+    let text = '';
+    const parent = element.parentElement;
+    if (!parent) return null;
+
+    if (direction === 'before') {
+      let prev = element.previousElementSibling;
+      for (let i = 0; i < 3 && prev; i++) {
+        if (prev.tagName !== 'SCRIPT' && prev.tagName !== 'STYLE') {
+          const nodeText = (prev.textContent || '').trim();
+          if (nodeText && nodeText.length > 5 && nodeText.length < 500) {
+            text = nodeText + ' ' + text;
+          }
+        }
+        prev = prev.previousElementSibling;
+      }
+    } else {
+      let next = element.nextElementSibling;
+      for (let i = 0; i < 3 && next; i++) {
+        if (next.tagName !== 'SCRIPT' && next.tagName !== 'STYLE') {
+          const nodeText = (next.textContent || '').trim();
+          if (nodeText && nodeText.length > 5 && nodeText.length < 500) {
+            text = text + ' ' + nodeText;
+          }
+        }
+        next = next.nextElementSibling;
+      }
+    }
+
+    return text.trim() || null;
   }
 
   /**

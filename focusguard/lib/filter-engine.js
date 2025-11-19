@@ -53,17 +53,24 @@ class FilterEngine {
     }
 
     if (typeof confidence === 'number' && confidence < threshold) {
+      console.debug(`FocusGuard: Confidence ${confidence} below threshold ${threshold}, not blocking`);
       return false;
     }
 
     const normalizedCategory = this.normalizeCategory(category);
 
-    return blockedCategories.some(blocked => {
+    const shouldBlockResult = blockedCategories.some(blocked => {
       const normalizedBlocked = this.normalizeCategory(blocked);
       return normalizedCategory === normalizedBlocked ||
              normalizedCategory.includes(normalizedBlocked) ||
              normalizedBlocked.includes(normalizedCategory);
     });
+
+    if (shouldBlockResult) {
+      console.debug(`FocusGuard: Category "${category}" (confidence: ${confidence}) matches blocked categories`);
+    }
+
+    return shouldBlockResult;
   }
 
   /**
